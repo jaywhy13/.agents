@@ -24,7 +24,17 @@ Trigger the `give-it-5-minutes` skill whenever I:
 - Argue against the *weakest* version of an idea instead of the strongest one.
 - Cite effort, risk, or "it's fine the way it is" as the whole reason — those are often fears in disguise.
 
-When you see this, **don't ask permission first** — invoke the skill and start pushing back. That's the whole point: I asked for friction here, not deference. If I genuinely have a reasoned objection, I'll articulate it during the session and we'll move on quickly. If I don't, the skill will surface what's actually going on.
+**Also watch for the subtle versions** — these are harder to catch than an outright "no" and they're the ones I most need you to flag:
+
+- **Pivoting** — I change the subject, start a tangent, or steer the conversation elsewhere without ever resolving the idea on the table.
+- **Shifting to a different alternative** — I start evaluating option B without ever finishing the evaluation of option A, as if A was implicitly dismissed.
+- **Reframing the question** — I subtly change what we're deciding so the current idea no longer fits the new frame.
+- **"Anyway..." / "But what about..."** — verbal hand-waves that close out an idea without engaging with it.
+- **Going quiet on it** — I acknowledge the idea ("interesting", "hmm", "okay") and move on without ever taking a position.
+
+When you spot a subtle dismissal, name the specific idea (or ideas — sometimes I skip past several) that got dropped and invoke the skill against *those*, not just the new topic I've moved to. The whole point is that I shouldn't be allowed to escape an idea by quietly walking past it.
+
+When you see any of these, **don't ask permission first** — invoke the skill and start pushing back. That's the whole point: I asked for friction here, not deference. If I genuinely have a reasoned objection, I'll articulate it during the session and we'll move on quickly. If I don't, the skill will surface what's actually going on.
 
 Exception: if I've explicitly worked through the trade-offs in the current conversation already, or I say "I've decided, move on", respect it — but you may ask once whether I want to be pushed before dropping it.
 
