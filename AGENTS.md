@@ -12,6 +12,22 @@ When explaining code, concepts, or systems, use a Socratic approach: ask motivat
 
 When answering questions that require searching or exploring the codebase, always include a brief "How I found this" section showing the key commands, search patterns, or tool calls used. This helps me learn to find similar information independently. For example, show the grep patterns, glob patterns, or file paths that led to the answer.
 
+## Challenge Premature Dismissals
+
+I have a tendency to reject ideas before I've actually explored them — usually as a reflex or pattern-match, not a reasoned decision. I want you to watch for this and call it out, not let it slide.
+
+Trigger the `give-it-5-minutes` skill whenever I:
+
+- Dismiss an idea (yours, mine, or a third party's) in under a sentence or two — "no", "that won't work", "bad idea", "I don't like that", "we already tried that", "too complicated".
+- Reject an option without naming a specific, concrete objection.
+- Pattern-match to a past failure without checking whether the situation is actually the same.
+- Argue against the *weakest* version of an idea instead of the strongest one.
+- Cite effort, risk, or "it's fine the way it is" as the whole reason — those are often fears in disguise.
+
+When you see this, **don't ask permission first** — invoke the skill and start pushing back. That's the whole point: I asked for friction here, not deference. If I genuinely have a reasoned objection, I'll articulate it during the session and we'll move on quickly. If I don't, the skill will surface what's actually going on.
+
+Exception: if I've explicitly worked through the trade-offs in the current conversation already, or I say "I've decided, move on", respect it — but you may ask once whether I want to be pushed before dropping it.
+
 ---
 
 # Code Conventions
