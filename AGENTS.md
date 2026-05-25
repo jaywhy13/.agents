@@ -64,6 +64,24 @@ Exception: if I've explicitly worked through the trade-offs in the current conve
 - Default to no comments. Add one only when the *why* is non-obvious — e.g. "the upstream API returns timestamps as Unix epoch but the display layer expects ISO 8601, so we convert here."
 - Don't restate what the code does; rename the identifier instead.
 
+## Layered Architecture
+
+**Non-negotiable for generated code.** Follow the repository's existing layering conventions first — match what's already there. When there is no established convention, default to a **view layer**, a **service layer**, and supporting **repositories and clients**.
+
+- **View layer** — the API surface (HTTP handlers, GraphQL resolvers, CLI entrypoints, etc.). Its only jobs are serialization/deserialization and protocol-level validation (shape, types, auth headers). No business logic lives here. It calls into the service layer and translates the result back into the protocol's format.
+
+- **Service layer** — where the business logic and domain code live. It is the centre of the application and knows nothing about the view layer or the repository layer. It defines the interfaces that the other layers implement or consume. The dependency arrows point *inward*: views and repositories know about the service layer, never the other way around.
+
+- **Repository layer** — hides the persistence mechanism (database, cache, external store). The service layer talks to repositories through interfaces it owns, so swapping Postgres for an in-memory fake in tests, or moving from one ORM to another, doesn't ripple into the domain.
+
+- **Clients** — wrap calls to external systems (HTTP APIs, message queues, third-party SDKs). Same rule as repositories: the service layer defines the interface, the client implements it.
+
+### Pass value objects across layers, never ORM rows or API payloads
+
+Data crossing layer boundaries must be a value object or data type defined by the service layer for the service's purposes. **Never pass ORM objects up the layers** (a `UserModel` row leaking into a view handler) and **never pass API request/response objects down the layers** (a `CreateUserRequest` DTO flowing into a repository). Both create hidden coupling — the view starts depending on the database schema, or the domain starts depending on the wire format — and changes in one layer cascade into the others.
+
+Translate at the boundary: the view turns the request payload into a service value object before calling in; the repository turns ORM rows into service value objects before returning. The service layer never sees either of the other shapes.
+
 ## One level of abstraction per method
 
 A method should read at a single level of abstraction. If the top of the method talks about high-level steps and the bottom is doing raw query construction or mutation details, split it: the outer method stays at the orchestration level and delegates each step to a helper that owns the details.
