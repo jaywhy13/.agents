@@ -7,6 +7,7 @@ TEMPLATE_FILE="${TEMPLATE_DIR}/AGENTS.md"
 usage() {
   cat >&2 <<EOF
 Usage:
+  $0 claude      Symlink AGENTS.md and skills into ~/.claude/
   $0 pi          Symlink AGENTS.md into ~/.pi/agent/
   $0 repo        Interactively bootstrap AGENTS.md in a target repository
 EOF
@@ -16,6 +17,48 @@ if [[ $# -ne 1 ]]; then
   usage
   exit 64
 fi
+
+# ---------------------------------------------------------------------------
+# Subcommand: claude — symlink AGENTS.md and skills into ~/.claude/
+# ---------------------------------------------------------------------------
+bootstrap_claude() {
+  local claude_dir="${HOME}/.claude"
+  mkdir -p "$claude_dir"
+
+  # Symlink AGENTS.md as the user-level CLAUDE.md
+  local source_file="${TEMPLATE_FILE}"
+  local target_link="${claude_dir}/CLAUDE.md"
+
+  if [[ ! -e "$source_file" ]]; then
+    echo "Source file not found: $source_file" >&2
+    exit 66
+  fi
+
+  if [[ -e "$target_link" && ! -L "$target_link" ]]; then
+    echo "Refusing to replace non-symlink: $target_link" >&2
+    exit 73
+  fi
+
+  ln -sfn "$source_file" "$target_link"
+  echo "Linked $target_link -> $source_file"
+
+  # Symlink skills directory
+  local source_skills="${TEMPLATE_DIR}/skills"
+  local target_skills="${claude_dir}/skills"
+
+  if [[ ! -d "$source_skills" ]]; then
+    echo "Skills directory not found: $source_skills" >&2
+    exit 66
+  fi
+
+  if [[ -e "$target_skills" && ! -L "$target_skills" ]]; then
+    echo "Refusing to replace non-symlink: $target_skills" >&2
+    exit 73
+  fi
+
+  ln -sfn "$source_skills" "$target_skills"
+  echo "Linked $target_skills -> $source_skills"
+}
 
 # ---------------------------------------------------------------------------
 # Subcommand: pi — symlink AGENTS.md into the pi agent directory
@@ -157,8 +200,9 @@ EOF
 # Dispatch
 # ---------------------------------------------------------------------------
 case "$1" in
-  pi)   bootstrap_pi ;;
-  repo) bootstrap_repo ;;
+  claude) bootstrap_claude ;;
+  pi)     bootstrap_pi ;;
+  repo)   bootstrap_repo ;;
   *)
     usage
     echo "Unsupported bootstrap target: $1" >&2
