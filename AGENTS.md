@@ -73,17 +73,48 @@ Use whatever annotation mechanism the language provides to make types explicit �
 - Default to no comments. Add one only when the *why* is non-obvious — e.g. "the upstream API returns timestamps as Unix epoch but the display layer expects ISO 8601, so we convert here."
 - Don't restate what the code does; rename the identifier instead.
 
+## No Fat Models
+
+In frameworks like Django and Rails, **never put business logic on models**. Models own data integrity — field definitions, constraints, choices, `__str__` — and nothing else. Business logic belongs in a dedicated **service layer** (`services.py` or a `services/` package).
+
+Why: fat models couple business rules to the persistence layer. You can't test the logic without a database, you can't reuse it from a management command or a background job without importing the model, and the model file grows into an unnavigable wall that mixes "how is this stored" with "what does the business do." A service function takes explicit inputs, calls the repository for persistence, and returns a result — easy to test, easy to compose, easy to find.
+
+```python
+# Fat model — business logic buried on the model
+class Order(models.Model):
+    def process(self) -> None:
+        if self.total > 100:
+            self.apply_discount(10)
+        self.status = 'processed'
+        self.save()
+        send_confirmation_email(self)
+
+# Service class — business logic is explicit and testable
+class OrderService:
+    def __init__(self, order_repository: OrderRepository | None = None) -> None:
+        self.order_repository = order_repository or OrderRepository()
+
+    def process(self, order: Order) -> None:
+        if order.total > 100:
+            order.apply_discount(10)
+        order.status = 'processed'
+        self.order_repository.save(order)
+        send_confirmation_email(order)
+```
+
+The service version is the same amount of code, but it doesn't pretend that "processing" is an intrinsic property of the data. It's a business operation that *uses* the data. The class takes its repository as a constructor dependency, so tests can inject a fake without patching.
+
 ## Layered Architecture
 
 **Non-negotiable for generated code.** Follow the repository's existing layering conventions first — match what's already there. When there is no established convention, default to a **view layer**, a **service layer**, and supporting **repositories and clients**.
 
 - **View layer** — the API surface (HTTP handlers, GraphQL resolvers, CLI entrypoints, etc.). Its only jobs are serialization/deserialization and protocol-level validation (shape, types, auth headers). No business logic lives here. It calls into the service layer and translates the result back into the protocol's format.
 
-- **Service layer** — where the business logic and domain code live. It is the centre of the application and knows nothing about the view layer or the repository layer. It defines the interfaces that the other layers implement or consume. The dependency arrows point *inward*: views and repositories know about the service layer, never the other way around.
+- **Service layer** — where the business logic and domain code live. Services are **classes** that take their dependencies (repositories, clients) in the constructor, making them testable with fakes. The service layer is the centre of the application and knows nothing about the view layer. The dependency arrows point *inward*: views and repositories know about the service layer, never the other way around.
 
-- **Repository layer** — hides the persistence mechanism (database, cache, external store). The service layer talks to repositories through interfaces it owns, so swapping Postgres for an in-memory fake in tests, or moving from one ORM to another, doesn't ripple into the domain.
+- **Repository layer** — hides the persistence mechanism (database, cache, external store). Repositories are **classes**. The service layer talks to repositories through interfaces it owns, so swapping Postgres for an in-memory fake in tests, or moving from one ORM to another, doesn't ripple into the domain.
 
-- **Clients** — wrap calls to external systems (HTTP APIs, message queues, third-party SDKs). Same rule as repositories: the service layer defines the interface, the client implements it.
+- **Clients** — wrap calls to external systems (HTTP APIs, message queues, third-party SDKs). Clients are **classes**. Same rule as repositories: the service layer defines the interface, the client implements it.
 
 ### Pass value objects across layers, never ORM rows or API payloads
 
@@ -97,9 +128,11 @@ A method should read at a single level of abstraction. If the top of the method 
 
 ```python
 # Mixes orchestration with query logic and mutation details
-def archive_expired_records(batch):
-    cutoff = batch.expires_at
-    records = Record.objects.filter(batch=batch, created_at__lt=cutoff, archived=False)
+def archive_expired_records(batch: Batch) -> None:
+    cutoff: datetime = batch.expires_at
+    records: QuerySet[Record] = Record.objects.filter(
+        batch=batch, created_at__lt=cutoff, archived=False,
+    )
     for record in records:
         record.archived = True
         record.archived_at = now()
@@ -107,7 +140,7 @@ def archive_expired_records(batch):
         AuditLog.objects.create(record=record, action="archived")
 
 # Each method reads at one level; details hide one level down
-def archive_expired_records(batch):
+def archive_expired_records(batch: Batch) -> None:
     for record in expired_records_in(batch):
         archive(record)
 ```
@@ -127,20 +160,20 @@ The first version forces the reader to context-switch between "what are we doing
   ```python
   # Shared setup — data declared far from where it's used, tests are coupled
   class TestOrderProcessing:
-      def setUp(self):
-          self.user = UserFactory()
-          self.order_with_items = OrderFactory(user=self.user)
-          self.empty_order = OrderFactory(user=self.user)
+      def setUp(self) -> None:
+          self.user: User = UserFactory()
+          self.order_with_items: Order = OrderFactory(user=self.user)
+          self.empty_order: Order = OrderFactory(user=self.user)
           # ... many more declarations
 
   # Factory per test — data declared inline, tests are independent
   class TestOrderProcessing:
-      def test_total_is_calculated_from_items(self):
-          order = OrderFactory(items=[ItemFactory(price=10), ItemFactory(price=5)])
+      def test_total_is_calculated_from_items(self) -> None:
+          order: Order = OrderFactory(items=[ItemFactory(price=10), ItemFactory(price=5)])
           assert order.total == 15
 
-      def test_empty_order_has_zero_total(self):
-          empty_order = OrderFactory(items=[])
+      def test_empty_order_has_zero_total(self) -> None:
+          empty_order: Order = OrderFactory(items=[])
           assert empty_order.total == 0
   ```
 
@@ -149,15 +182,16 @@ The first version forces the reader to context-switch between "what are we doing
   ```python
   # Inline patch — breaks everywhere when the interface changes
   @patch('payments.gateway.charge')
-  def test_order_charges_correct_amount(self, mock_charge):
+  def test_order_charges_correct_amount(self, mock_charge: MagicMock) -> None:
       mock_charge.return_value = {"status": "ok"}
       ...
       mock_charge.assert_called_once_with(amount=15_00, currency="usd")
 
   # Centralized fake — interface changes require one update
-  def test_order_charges_correct_amount(self):
-      gateway = FakePaymentGateway()
-      process_order(order, gateway=gateway)
+  def test_order_charges_correct_amount(self) -> None:
+      gateway: FakePaymentGateway = FakePaymentGateway()
+      order_service: OrderService = OrderService(payment_gateway=gateway)
+      order_service.process(order)
       gateway.assert_charged(amount=15_00, currency="usd")
   ```
 
