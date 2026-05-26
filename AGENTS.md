@@ -46,6 +46,7 @@ Exception: if I've explicitly worked through the trade-offs in the current conve
 
 - **No abbreviations.** Write `account_balance`, not `acct_bal`; `is_active`, not `ia`; `retry_count`, not `rc`.
 - **Name with intent.** When a generic name would let several different meanings pass the type check, encode the specific intent in the name. The reader shouldn't have to scan the body to know what's special about this value.
+- **Keep naming consistent.** Use one domain term for one concept across files and tests (for example: if it's a defer rule, call it a defer rule everywhere).
 
   ```python
   # Generic — what's notable about this account? Have to read the body.
@@ -58,6 +59,14 @@ Exception: if I've explicitly worked through the trade-offs in the current conve
   ```
 
   Same rule applies to local variables, function parameters, and frontend state. If a reviewer would ask "what is this for?", the name is wrong — rename rather than add a comment.
+
+## Prefer Explicit Branching Over Clever Ordering
+
+When a conditional result depends on a known set of cases, use one explicit branch per case. Don't encode the logic in sort order, ranking, or collection membership where the connection between input and output is indirect. A future contributor adding a new case must add a branch; an explicit error for the unhandled case makes silent drift impossible.
+
+## Type Annotations
+
+Use whatever annotation mechanism the language provides to make types explicit — don't leave them implied just because the code runs without them. Explicit types make contracts readable, catch mistakes earlier, and reduce the need to trace callers to understand what a value holds.
 
 ## Comments
 

@@ -1,55 +1,81 @@
 #!/usr/bin/env bash
-#
-# Bootstrap or improve an AGENTS.md in the target repository by handing
-# a structured prompt to a chosen LLM CLI (claude or pi).
-#
-# Usage:
-#   ~/.agents/bootstrap.sh
-#
-# The script prompts for: the LLM executable, the target repo path,
-# and whether to also scaffold the docs/* files referenced from AGENTS.md.
-
 set -euo pipefail
 
 TEMPLATE_DIR="${HOME}/.agents"
 TEMPLATE_FILE="${TEMPLATE_DIR}/AGENTS.md"
 
-if [[ ! -f "$TEMPLATE_FILE" ]]; then
-  echo "Error: template not found at $TEMPLATE_FILE" >&2
-  exit 1
+usage() {
+  cat >&2 <<EOF
+Usage:
+  $0 pi          Symlink AGENTS.md into ~/.pi/agent/
+  $0 repo        Interactively bootstrap AGENTS.md in a target repository
+EOF
+}
+
+if [[ $# -ne 1 ]]; then
+  usage
+  exit 64
 fi
 
 # ---------------------------------------------------------------------------
-# 1. Which LLM executable?
+# Subcommand: pi — symlink AGENTS.md into the pi agent directory
 # ---------------------------------------------------------------------------
-read -r -p "LLM executable [claude/pi] (default: claude): " LLM
-LLM="${LLM:-claude}"
+bootstrap_pi() {
+  local source_file="${TEMPLATE_FILE}"
+  local target_dir="${HOME}/.pi/agent"
+  local target_link="${target_dir}/AGENTS.md"
 
-if ! command -v "$LLM" >/dev/null 2>&1; then
-  echo "Error: '$LLM' is not on PATH." >&2
-  exit 1
-fi
+  if [[ ! -e "$source_file" ]]; then
+    echo "Source file not found: $source_file" >&2
+    exit 66
+  fi
+
+  mkdir -p "$target_dir"
+  cd "$target_dir"
+
+  if [[ -e "$target_link" && ! -L "$target_link" ]]; then
+    echo "Refusing to replace non-symlink: $target_link" >&2
+    exit 73
+  fi
+
+  ln -sfn "$source_file" "$(basename "$target_link")"
+  echo "Linked $target_link -> $source_file"
+}
 
 # ---------------------------------------------------------------------------
-# 2. Which repository?
+# Subcommand: repo — interactively bootstrap AGENTS.md in a target repo
 # ---------------------------------------------------------------------------
-DEFAULT_REPO="$(pwd)"
-read -r -p "Target repo path [${DEFAULT_REPO}]: " REPO_PATH
-REPO_PATH="${REPO_PATH:-$DEFAULT_REPO}"
+bootstrap_repo() {
+  if [[ ! -f "$TEMPLATE_FILE" ]]; then
+    echo "Error: template not found at $TEMPLATE_FILE" >&2
+    exit 1
+  fi
 
-if [[ ! -d "$REPO_PATH" ]]; then
-  echo "Error: '$REPO_PATH' is not a directory." >&2
-  exit 1
-fi
+  # Which LLM executable?
+  read -r -p "LLM executable [claude/pi] (default: claude): " LLM
+  LLM="${LLM:-claude}"
 
-# ---------------------------------------------------------------------------
-# 3. Scaffold docs/ files too?
-# ---------------------------------------------------------------------------
-read -r -p "Also scaffold docs/architecture.md, docs/coding_conventions.md, docs/testing.md? [Y/n]: " SCAFFOLD_ANSWER
-SCAFFOLD_ANSWER="${SCAFFOLD_ANSWER:-Y}"
+  if ! command -v "$LLM" >/dev/null 2>&1; then
+    echo "Error: '$LLM' is not on PATH." >&2
+    exit 1
+  fi
 
-if [[ "$SCAFFOLD_ANSWER" =~ ^[Yy] ]]; then
-  SCAFFOLD_DOCS_BLOCK=$(cat <<'BLOCK'
+  # Which repository?
+  DEFAULT_REPO="$(pwd)"
+  read -r -p "Target repo path [${DEFAULT_REPO}]: " REPO_PATH
+  REPO_PATH="${REPO_PATH:-$DEFAULT_REPO}"
+
+  if [[ ! -d "$REPO_PATH" ]]; then
+    echo "Error: '$REPO_PATH' is not a directory." >&2
+    exit 1
+  fi
+
+  # Scaffold docs/ files too?
+  read -r -p "Also scaffold docs/architecture.md, docs/coding_conventions.md, docs/testing.md? [Y/n]: " SCAFFOLD_ANSWER
+  SCAFFOLD_ANSWER="${SCAFFOLD_ANSWER:-Y}"
+
+  if [[ "$SCAFFOLD_ANSWER" =~ ^[Yy] ]]; then
+    SCAFFOLD_DOCS_BLOCK=$(cat <<'BLOCK'
 ## Also scaffold the docs/ files
 
 Create (or improve, if they already exist) these files in the target repo:
@@ -63,19 +89,16 @@ Use the template at the path above as the source for tone, depth, and reasoning 
 If a docs/ file already exists, *improve* it rather than overwriting. Preserve repo-specific guidance already present.
 BLOCK
 )
-else
-  SCAFFOLD_DOCS_BLOCK=$(cat <<'BLOCK'
+  else
+    SCAFFOLD_DOCS_BLOCK=$(cat <<'BLOCK'
 ## Do NOT create the docs/ files
 
 Reference `docs/architecture.md`, `docs/coding_conventions.md`, and `docs/testing.md` by relative path in AGENTS.md, but do not create them. The user will fill them in separately.
 BLOCK
 )
-fi
+  fi
 
-# ---------------------------------------------------------------------------
-# 4. Assemble the prompt
-# ---------------------------------------------------------------------------
-PROMPT=$(cat <<EOF
+  PROMPT=$(cat <<EOF
 You are bootstrapping an AGENTS.md file for the repository at:
 
   ${REPO_PATH}
@@ -126,8 +149,19 @@ Begin now.
 EOF
 )
 
+  cd "$REPO_PATH"
+  printf '%s\n' "$PROMPT" | "$LLM"
+}
+
 # ---------------------------------------------------------------------------
-# 5. Hand off to the LLM, with CWD set to the target repo
+# Dispatch
 # ---------------------------------------------------------------------------
-cd "$REPO_PATH"
-printf '%s\n' "$PROMPT" | "$LLM"
+case "$1" in
+  pi)   bootstrap_pi ;;
+  repo) bootstrap_repo ;;
+  *)
+    usage
+    echo "Unsupported bootstrap target: $1" >&2
+    exit 64
+    ;;
+esac
