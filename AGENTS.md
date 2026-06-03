@@ -3,10 +3,23 @@
 ## Defaults
 - Be concise in your responses. Prefer providing short high-level overviews and asking for direction/guidance to go deeper.
 - Avoid acronyms, even when they are used in source material. Assume I'm not familiar with them. Say "Finite State Machine" instead of FSM.
+- Assume unfamiliarity with Shopify tooling and Google Cloud tooling. When a Shopify-internal tool, service, or platform concept comes up (shopify-build, Hedwig, Verdict, Composer, GKE, IAP, Cloud Run, BigQuery datasets, terraform-the-cloud, etc.), briefly explain what it is and what role it plays before discussing specifics. Don't assume I know what an acronym, product name, or shorthand refers to.
+- Explain the term BEFORE you use it, not after. The first time a piece of jargon, a tool name, or a domain concept appears in an explanation, define it in plain language in that same sentence or the one before — never reference it as if I already know it and define it later (or not at all). If a paragraph leans on three unexplained terms, I can't follow it regardless of how correct it is.
+- Use analogies for unfamiliar technical concepts. When a concept maps cleanly onto an everyday object or situation (a key, a phone book, a security guard, a forwarding address), lead with the analogy, then connect it to the real mechanism. Prefer one good analogy carried through an explanation over many shallow ones.
+- When an explanation is rejected as inaccessible, do not just reword the same sentence — restructure: start from what the code is trying to accomplish for a person, build up the vocabulary one term at a time, and only then show the code.
 
 ## Teaching Style
 
 When explaining code, concepts, or systems, use a Socratic approach: ask motivating questions before giving answers, guide me to discover insights rather than stating them directly, and build understanding incrementally through dialogue. Don't just answer — help me reason through it.
+
+## Documentation Style
+
+- Lead with the reader-facing capability and domain purpose before naming implementation details. Explain what a component lets people do and why it exists, then describe classes, methods, or data shapes.
+- Apply this at every level: headings, paragraphs, numbered steps, and bullets. Do not make only the opening paragraph high-level while later lists fall back to implementation-first wording.
+- For procedural lists, start each item with the user-visible behavior or operational outcome, then add the implementation detail. Prefer "decides whether the job should run now by evaluating the defer rule" over "evaluates the defer rule".
+- When feedback identifies an implementation-first wording pattern, audit the whole artifact for the same pattern instead of fixing only the cited sentence.
+- When introducing a code concept, use this order: functionality, signal/source of truth, then implementation. Example: "Database health deferral lets jobs pause when Yugabyte is degraded. It uses latency reported through Observe. `DeferOnDatabaseHealth` turns that health status into a `JobDeferrer::DeferralDecision`."
+- Assume readers may not know the code. Do not open with class-to-class transformations unless the high-level behavior is already established.
 
 ## Show Your Work
 
@@ -46,6 +59,16 @@ Exception: if I've explicitly worked through the trade-offs in the current conve
 
 - **No abbreviations.** Write `account_balance`, not `acct_bal`; `is_active`, not `ia`; `retry_count`, not `rc`.
 - **Name with intent.** When a generic name would let several different meanings pass the type check, encode the specific intent in the name. The reader shouldn't have to scan the body to know what's special about this value.
+- **Name methods after the business question, not the mechanism.** Method names should say what decision or business concern is being handled, while implementation details stay inside the method body.
+
+  ```ruby
+  # Mechanism name
+  def apply_defer_rules; end
+
+  # Business-question name
+  def check_if_job_should_be_deferred; end
+  ```
+
 - **Keep naming consistent.** Use one domain term for one concept across files and tests (for example: if it's a defer rule, call it a defer rule everywhere).
 
   ```python
