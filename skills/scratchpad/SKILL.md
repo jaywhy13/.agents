@@ -1,6 +1,6 @@
 ---
 name: scratchpad
-description: "Per-task plan.md scratchpad with active/completed task folders. Discover or create a task folder under the user's active tasks directory, keep a living plan.md updated as work progresses, and on completion tear down the workspace — remove the worktree, delete the Zellij session, and move the folder to completed. Trigger: user says 'scratchpad', '/scratchpad', 'open the scratchpad', 'I'm done with this task', or starts a multi-step task that needs a written plan."
+description: "Per-task plan.md scratchpad with active/completed task folders. Discover or create a task folder under the user's active tasks directory, keep a living plan.md updated as work progresses, and on completion run a task-scoped retrospective then tear down the workspace — remove the worktree, delete the Zellij session, and move the folder to completed. Trigger: user says 'scratchpad', '/scratchpad', 'open the scratchpad', 'I'm done with this task', or starts a multi-step task that needs a written plan."
 ---
 
 # scratchpad
@@ -284,8 +284,9 @@ Update plan.md whenever:
 6. Status changes → update only the `**Status**:` bullet and apply the state
    transition:
    - `in progress`, `blocked`, `paused`, or `in review` stays in `active/`.
-   - `done` or `completed` runs **Task completion (teardown)**: it tears down
-     the workspace and moves the whole task folder to `completed/`.
+   - `done` or `completed` runs **Task completion (teardown)**: it runs a
+     task-scoped retrospective, tears down the workspace, and moves the whole
+     task folder to `completed/`.
    - Reopened work moves from `completed/` to `active/` after confirmation,
      then sets `Status: in progress`.
 7. The Zellij session gains, loses, renames, or repurposes a pane → update the
@@ -342,15 +343,32 @@ and the folder lands in `completed/`. Treat the done confirmation as the
 explicit authorization to remove the worktree — but never destroy uncommitted
 or unpushed work without asking.
 
-Do the steps in this order. Verify safety first, tear down running resources
-next, and move the folder **last** so the plan stays in place if teardown
-stops early.
+Do the steps in this order. Capture the learnings first while every resource
+still exists, verify safety next, tear down running resources, and move the
+folder **last** so the plan stays in place if teardown stops early.
 
 1. **Confirm intent.** Only proceed on an explicit done confirmation, never on
    a guess. Restate the task name in one line so the right task is being closed.
-2. **Set the status.** Update the `**Status**:` bullet to `done` before any
+2. **Run a task-scoped retrospective.** Before anything is removed, harvest the
+   task's learnings while the plan, worktree commits, branch, and Zellij
+   session are all still available as source material. Load and follow the
+   `retrospect` skill from `~/.agents/skills/retrospect/SKILL.md`, but scope it
+   to this single task instead of the whole week:
+   - Source material is this task's `plan.md` (overview, decisions, open
+     questions, files touched, context snapshot) plus the worktree's git
+     history (`git -C <worktree-or-repo> log --oneline main..` for the work
+     committed on this task). Skip the week-wide conversation collector.
+   - Write the seven sections to `retro.md` in the task folder (next to
+     `plan.md`) so the retrospective travels with the task into `completed/`.
+     Also write a copy to `~/retrospectives/<YYYY-MM-DD>-<slug>.md` (today's
+     date, the task slug), not the undated weekly file, so per-task retros
+     don't collide and stay browsable in one place.
+   - If the plan is thin and there's genuinely nothing worth recording, say so
+     in one line and skip both files rather than padding.
+   Do not start teardown until the retro is written (or explicitly skipped).
+3. **Set the status.** Update the `**Status**:` bullet to `done` before any
    teardown, so a plan read mid-teardown reflects the decision.
-3. **Tear down the worktree** — only if `**Worktree**:` is a path that exists on
+4. **Tear down the worktree** — only if `**Worktree**:` is a path that exists on
    disk (skip cleanly for `none` or a missing path):
    - Guard against losing work. Check for uncommitted changes with
      `git -C <path> status --porcelain`; if it prints anything, **stop** and
@@ -364,17 +382,19 @@ stops early.
    - Tidy admin state: `git -C <repo> worktree prune`.
    - Leave the branch alone. Never `git branch -D` unless the user asks; a
      merged or pushed branch is theirs to keep.
-4. **Delete the Zellij session** named in `**Zellij session**:` (default
+5. **Delete the Zellij session** named in `**Zellij session**:` (default
    `task-<slug>`). Deleting the session disposes of every pane/subagent tab at
    once:
    - `zellij delete-session --force <session-name>` (the `--force` flag also
      kills it if it is still running).
    - Verify it is gone from `zellij list-sessions --no-formatting`.
-5. **Move the folder** to `completed/` using **Moving task folders** below.
+6. **Move the folder** to `completed/` using **Moving task folders** below.
    Do this only after teardown succeeded (or the user chose to complete the
    task while keeping the worktree).
-6. **Report** in three lines: worktree (removed / skipped — reason), Zellij
+7. **Report** in three lines: worktree (removed / skipped — reason), Zellij
    session (deleted / not running), folder (moved to `completed/<name>`).
+   Note the retro paths written in step 2 (`completed/<name>/retro.md` and the
+   `~/retrospectives/` copy).
 
 After teardown, stop auto-updating the plan unless the task is reopened.
 If teardown halts at the safety guard, leave the folder in `active/` and the
@@ -400,5 +420,5 @@ Do not write code or tests outside that loop.
 ## Stop conditions
 
 - "Stop tracking" or "close the scratchpad" → set `Status: paused`; keep it in `active/` unless done is confirmed.
-- User confirms the task is done → run **Task completion (teardown)**: remove the worktree (after the uncommitted/unpushed safety check), delete the Zellij session, move the folder to `completed/`, and stop auto-updating unless reopened.
+- User confirms the task is done → run **Task completion (teardown)**: first run a task-scoped retrospective, then remove the worktree (after the uncommitted/unpushed safety check), delete the Zellij session, move the folder to `completed/`, and stop auto-updating unless reopened.
 - New unrelated task started → run Phase 1 before touching any plan.md.
