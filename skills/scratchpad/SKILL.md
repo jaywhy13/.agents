@@ -1,6 +1,6 @@
 ---
 name: scratchpad
-description: "Per-task plan.md scratchpad with active/completed task folders. Discover or create a task folder under the user's active tasks directory, move finished tasks to completed, and keep a living plan.md updated as work progresses. Trigger: user says 'scratchpad', '/scratchpad', 'open the scratchpad', or starts a multi-step task that needs a written plan."
+description: "Per-task plan.md scratchpad with active/completed task folders. Discover or create a task folder under the user's active tasks directory, keep a living plan.md updated as work progresses, and on completion tear down the workspace — remove the worktree, delete the Zellij session, and move the folder to completed. Trigger: user says 'scratchpad', '/scratchpad', 'open the scratchpad', 'I'm done with this task', or starts a multi-step task that needs a written plan."
 ---
 
 # scratchpad
@@ -85,13 +85,14 @@ Before writing anything, identify the task.
 4. Ask the user to choose one active folder or "Create a new task folder" with a
    single-select `ask` tool call.
 5. If the user chooses an active folder, read `plan.md` and confirm the summary
-   in one line before proceeding. Then run **Worktree setup** so the worktree
-   exists before any work starts, and run **Agent todo review** before doing
-   anything else.
+   in one line before proceeding. Then run **Repository and worktree setup** so
+   the worktree exists, run **Zellij session setup** so the session is live,
+   and run **Agent todo review** before doing anything else.
 6. If the user chooses "new", confirm the readable name and slug, ask the
-   worktree questions (see "Worktree setup"), then create
+   worktree questions (see "Repository and worktree setup"), then create
    `<TASKS_ROOT>/active/<TODAY>-<slug>/plan.md` from `PLAN_TEMPLATE.md` with
-   the metadata header filled in. Skip Agent todo review for fresh tasks —
+   the metadata header filled in. Immediately run **Zellij session setup** to
+   bring the session up. Skip Agent todo review for fresh tasks —
    there are no open agent items yet.
 7. Skip the prompt only when the user already named the task and it exact-or-fuzzy
    matches an active folder.
@@ -177,27 +178,97 @@ Run this whenever opening or creating a task that touches code.
    startup command in every Zellij pane.
 3. **Decide whether a worktree applies.** Quick exploration or single-branch
    work can stay in the main checkout — set `Worktree: none` and stop here.
-   Code-edit tasks that need an isolated branch get a worktree.
-4. **For new worktrees**, ask the user for:
-   - The **repo path** (resolve from `Repository` if possible; otherwise ask).
-   - The **branch name** (default: the task slug). Sanitize to a valid git ref.
-5. **Build the worktree path** as `<repo>/.worktrees/<branch>`. Confirm the
-   absolute path with the user once before creating.
+   Code-edit tasks that need an isolated workspace get a worktree.
+4. **Default to deferring the branch.** Do not create a named branch up front.
+   A fresh worktree starts **detached at `main`'s tip** so the branch name can
+   reflect the actual committed work, decided once there is code to commit. Only
+   create the branch now if the user explicitly names one (e.g. resuming known
+   work). Sanitize any explicit branch name to a valid git ref.
+5. **Build the worktree path** from the task slug: `<repo>/.worktrees/<slug>`
+   (or `<repo>/.worktrees/<branch>` when an explicit branch was given). Confirm
+   the absolute path with the user once before creating.
 6. **Create on demand**, only when the path doesn't already exist:
-   - New branch: `git -C <repo> worktree add <path> -b <branch>`
-   - Existing local branch: `git -C <repo> worktree add <path> <branch>`
-   - If the branch is checked out elsewhere, stop and ask — never force.
+   - Detached on main (default, no branch yet):
+     `git -C <repo> worktree add --detach <path> main`
+   - Explicit new branch: `git -C <repo> worktree add <path> -b <branch>`
+   - Explicit existing local branch:
+     `git -C <repo> worktree add <path> <branch>`
+   - If the requested branch is checked out elsewhere, stop and ask — never
+     force. (A detached worktree at `main` is always safe even when `main` is
+     checked out in the primary tree.)
 7. **Record** the absolute path in the `**Worktree**:` bullet. Do not record
-   the bare branch name.
+   the bare branch name. For a detached worktree, add a sub-bullet noting it is
+   detached on `main` and the branch is deferred.
 8. **Verify** with `git -C <repo> worktree list` and confirm the new entry.
+9. **Create the branch later, from inside the worktree**, once there is code to
+   commit: `git -C <path> switch -c <branch>`. Pick the branch name to match
+   the work, then update the `**Worktree**:` sub-bullet accordingly.
 
 When opening an existing task whose `Worktree` path is missing on disk,
-recreate it with the same logic. The branch name is the last path component of
-the worktree path; the repo root is the path with `/.worktrees/<branch>`
-stripped, which should match the recorded `Repository`.
+recreate it with the same logic. The repo root is the path with
+`/.worktrees/<name>` stripped, which should match the recorded `Repository`.
+If the sub-bullet says the worktree is detached / branch deferred, recreate it
+detached at `main` (`git -C <repo> worktree add --detach <path> main`) rather
+than inventing a branch from the path's last component.
 
 `.worktrees/` is covered by the user's global gitignore
 (`~/.config/git/ignore`), so no repo `.gitignore` changes are required.
+
+## Zellij session setup
+
+Bring the task's Zellij session up immediately — on new-task creation and when
+opening an existing task — so the workspace is ready without a separate
+`/scratchpad-sync` run. This mirrors `scratchpad-sync`'s session-building logic
+for a single task.
+
+1. **Skip if already running.** Run `zellij list-sessions --no-formatting`. If
+   `<session-name>` (default `task-<slug>`) is running, leave it alone. If a
+   same-named session is `EXITED`/dead, delete it first with
+   `zellij delete-session <name>`.
+2. **Pick the cwd.** Worktree path if set; else the repo path; else the task
+   folder.
+3. **Pick the pane command** from the metadata:
+   - Repo + worktree: `zsh -i -c "dev cd <repo>; cd <worktree-relative-path>; exec zsh -i"`
+     (`<worktree-relative-path>` is typically `.worktrees/<name>`).
+   - Repo only: `zsh -i -c "dev cd <repo>; exec zsh -i"`.
+   - No repo: omit the command; the pane inherits `cwd` with a plain shell.
+4. **Write a KDL layout** to a scratch path with one `tab` per pane in the
+   `**Panes**:` bullet, and **always** include `default_tab_template` with the
+   `tab-bar` and `status-bar` plugins around `children` (otherwise tabs render
+   bare). Template:
+
+   ```kdl
+   layout {
+       default_tab_template {
+           pane size=1 borderless=true {
+               plugin location="tab-bar"
+           }
+           children
+           pane size=1 borderless=true {
+               plugin location="status-bar"
+           }
+       }
+       cwd "/abs/path/to/worktree"
+       tab name="plan" {
+           pane command="zsh" {
+               args "-i" "-c" "dev cd <repo>; cd .worktrees/<name>; exec zsh -i"
+           }
+       }
+       tab name="pi" {
+           pane command="zsh" {
+               args "-i" "-c" "dev cd <repo>; cd .worktrees/<name>; exec zsh -i"
+           }
+       }
+   }
+   ```
+
+   KDL notes: each `pane` block on its own lines (no one-liners); `args` are
+   positional string tokens, not space-joined; `children` sits on its own line.
+5. **Create it detached** so it never steals the current terminal:
+   `zellij -n <layout-path> attach --create-background <session-name>`.
+6. **Verify** tabs with
+   `zellij --session <session-name> action query-tab-names`, then tell the user
+   the attach hint: `zellij attach <session-name>`.
 
 ## Phase 2: Live updates
 
@@ -213,8 +284,8 @@ Update plan.md whenever:
 6. Status changes → update only the `**Status**:` bullet and apply the state
    transition:
    - `in progress`, `blocked`, `paused`, or `in review` stays in `active/`.
-   - `done` or `completed` moves the whole task folder to `completed/` after
-     the status line is updated.
+   - `done` or `completed` runs **Task completion (teardown)**: it tears down
+     the workspace and moves the whole task folder to `completed/`.
    - Reopened work moves from `completed/` to `active/` after confirmation,
      then sets `Status: in progress`.
 7. The Zellij session gains, loses, renames, or repurposes a pane → update the
@@ -262,6 +333,53 @@ When syncing context:
 - If the destination path exists, stop and ask; never overwrite or merge.
 - After a move, use the new `plan.md` path for the rest of the session.
 
+## Task completion (teardown)
+
+Run this when the user confirms a task is finished — "done", "I'm done with
+this task", "close out this task", "finish this one". A finished task should
+leave nothing running: the worktree is removed, the Zellij session is deleted,
+and the folder lands in `completed/`. Treat the done confirmation as the
+explicit authorization to remove the worktree — but never destroy uncommitted
+or unpushed work without asking.
+
+Do the steps in this order. Verify safety first, tear down running resources
+next, and move the folder **last** so the plan stays in place if teardown
+stops early.
+
+1. **Confirm intent.** Only proceed on an explicit done confirmation, never on
+   a guess. Restate the task name in one line so the right task is being closed.
+2. **Set the status.** Update the `**Status**:` bullet to `done` before any
+   teardown, so a plan read mid-teardown reflects the decision.
+3. **Tear down the worktree** — only if `**Worktree**:` is a path that exists on
+   disk (skip cleanly for `none` or a missing path):
+   - Guard against losing work. Check for uncommitted changes with
+     `git -C <path> status --porcelain`; if it prints anything, **stop** and
+     ask whether to commit, keep, or discard. Do not remove the worktree.
+   - Check for unpushed commits: `git -C <path> log --branches --not --remotes
+     --oneline` (or compare the worktree branch against its upstream). If
+     commits would be lost, warn and ask before removing.
+   - When clean (or the user explicitly approves discarding), remove it:
+     `git -C <repo> worktree remove <path>`. Use `--force` only when the user
+     has explicitly approved discarding the changes surfaced above.
+   - Tidy admin state: `git -C <repo> worktree prune`.
+   - Leave the branch alone. Never `git branch -D` unless the user asks; a
+     merged or pushed branch is theirs to keep.
+4. **Delete the Zellij session** named in `**Zellij session**:` (default
+   `task-<slug>`). Deleting the session disposes of every pane/subagent tab at
+   once:
+   - `zellij delete-session --force <session-name>` (the `--force` flag also
+     kills it if it is still running).
+   - Verify it is gone from `zellij list-sessions --no-formatting`.
+5. **Move the folder** to `completed/` using **Moving task folders** below.
+   Do this only after teardown succeeded (or the user chose to complete the
+   task while keeping the worktree).
+6. **Report** in three lines: worktree (removed / skipped — reason), Zellij
+   session (deleted / not running), folder (moved to `completed/<name>`).
+
+After teardown, stop auto-updating the plan unless the task is reopened.
+If teardown halts at the safety guard, leave the folder in `active/` and the
+session running so nothing is lost; resume once the user resolves the work.
+
 ## Execution rule
 
 Before executing implementation work from the task list, load and follow the
@@ -274,12 +392,13 @@ Do not write code or tests outside that loop.
 - Never overwrite plan.md content; only append, check off items, or update the metadata bullets — except the `## Context Snapshot` section, which is refreshed to stay current.
 - Never delete Decisions, Files Touched, or completed Task list history.
 - Never overwrite or merge task folders during active/completed moves.
-- Never run `git worktree remove` automatically. Worktrees are created on demand and removed only on explicit user request.
+- Never run `git worktree remove` outside the **Task completion (teardown)** flow. The done confirmation is the only automatic trigger, and even then never remove a worktree with uncommitted or unpushed work without asking first.
+- Never `git branch -D` a task's branch automatically — branch deletion is always an explicit user request.
 - Do not stage or commit task folders or plan.md unless explicitly asked.
 - Keep entries terse, factual, and dated. Avoid speculation.
 
 ## Stop conditions
 
 - "Stop tracking" or "close the scratchpad" → set `Status: paused`; keep it in `active/` unless done is confirmed.
-- User confirms the task is done → set `Status: done`, move it to `completed/`, and stop auto-updating unless reopened. Leave the worktree on disk; cleanup is the user's call.
+- User confirms the task is done → run **Task completion (teardown)**: remove the worktree (after the uncommitted/unpushed safety check), delete the Zellij session, move the folder to `completed/`, and stop auto-updating unless reopened.
 - New unrelated task started → run Phase 1 before touching any plan.md.
