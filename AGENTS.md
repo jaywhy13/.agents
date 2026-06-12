@@ -83,6 +83,10 @@ Exception: if I've explicitly worked through the trade-offs in the current conve
 
   Same rule applies to local variables, function parameters, and frontend state. If a reviewer would ask "what is this for?", the name is wrong — rename rather than add a comment.
 
+- **Don't coin a second word for a concept that already has a name.** If the domain calls it an invoice, don't introduce "bill" alongside it; if it's a record, don't also call it an entry. A synonym forces every reader to confirm the two words mean the same thing, and the answer is sometimes "not quite," which is worse. One concept, one term — including in tests and local variables.
+
+- **Avoid placeholder names that describe nothing.** `extracted`, `result`, `data`, `temp`, `item` (when something more specific is true) make the reader scan the body to learn the role. Name the role: a list of ids about to be deleted is `order_ids_to_delete`, not `extracted`; the parsed request is `create_request`, not `data`. If a generic name is genuinely the only honest description, that's a hint the value is doing too many things.
+
 ## Prefer Explicit Branching Over Clever Ordering
 
 When a conditional result depends on a known set of cases, use one explicit branch per case. Don't encode the logic in sort order, ranking, or collection membership where the connection between input and output is indirect. A future contributor adding a new case must add a branch; an explicit error for the unhandled case makes silent drift impossible.
@@ -145,6 +149,42 @@ Data crossing layer boundaries must be a value object or data type defined by th
 
 Translate at the boundary: the view turns the request payload into a service value object before calling in; the repository turns ORM rows into service value objects before returning. The service layer never sees either of the other shapes.
 
+### The boundary violations frameworks make convenient
+
+The layering rules above are framework-neutral, which is exactly why they fail to fire: a framework's most idiomatic, best-documented feature is often the thing that wires two layers together and skips the one in the middle. The rules are abstract; the trap is concrete and has a friendly name. So name the traps explicitly and treat reaching for them as the signal to stop, regardless of how standard they are in the framework's community.
+
+- **A "model-bound serializer/schema" couples the view layer straight to the ORM.** Django's `ModelSerializer`, a Pydantic schema with `from_attributes`/`orm_mode`, an ActiveModelSerializer bound to a record — these read and write model fields directly, so the view layer talks to the database with no service or repository in between. This is common practice in those ecosystems and still a violation here. Define the serializer/schema over plain fields, hand validated data to a service, and serialize the value object the service returns. The serializer must not import or reference a model.
+
+- **"Auto-CRUD view" base classes wire the whole stack together behind your back.** Django's `ModelViewSet`, a generic `RetrieveUpdateDestroy` view, a scaffolded Rails controller, a framework's "resource" router — these generate create/read/update/delete handlers that call the ORM directly and bypass both the service and the repository. They also generate several write verbs (`create`, `update`, `partial_update`, `destroy`) that all apply the same configured behaviour uniformly, so any check or transformation you add by overriding a single verb is silently absent from the rest (an authorization guard wired into one path but missing from another, for instance). Prefer explicit handlers that deserialize, call a service method, and serialize the result.
+
+- **Returning a `QuerySet`, lazy query, or model instance from a repository is an ORM leak even when it type-checks.** A repository method that returns rows hands the ORM up to the service, so the service can accidentally trigger queries, mutate rows, or follow relations — and a change of ORM or schema then ripples upward. Returning a value object is not optional politeness; it is the boundary. Convert rows to value objects inside the repository before returning.
+
+The unifying tell: if a single framework construct lets you go from the wire format to the database without an explicit service call in between, it has collapsed your layers. Recognize it by name and don't use it, however idiomatic it is.
+
+### Repository methods are vanilla CRUD with consistent filter arguments
+
+Repositories expose persistence as generic create/read/update/delete operations — `list`, `get`, `create`, `update`, `delete` — and nothing shaped by a business use case. Reads accept **optional filter arguments** (`user_id`, `name`, `status`, …); because they're optional and named for the column, it's understood they narrow the query. Use the **same argument name for the same concept across every method** (`name` in `create` and `name` in `list`, never `name` one place and `name_search` another).
+
+Do not give repository methods business-flavoured names like `for_user`, `owned_by`, `active_for_account`, or `name_search`. Those names bake a business rule into the persistence layer, which is where it becomes invisible and untestable. **Per-user scoping and ownership enforcement are business logic and live in the service layer** — the service decides to call `list(user_id=current_user.id)` and decides what to do when a row isn't owned by the caller. The repository just runs the filter it was handed.
+
+```python
+# Business-flavoured repository — scoping baked into the method name
+class OrderRepository:
+    def for_user(self, user): ...
+    def name_search(self, name_search): ...   # inconsistent arg name, business intent
+
+# Vanilla CRUD — optional filters, consistent names; scoping moves up to the service
+class OrderRepository:
+    def list(self, user_id: int | None = None, name: str | None = None) -> list[Order]: ...
+    def create(self, user_id: int, name: str) -> Order: ...   # returns a value object, not an ORM row
+
+class OrderService:
+    def list_for_current_user(self, user_id: int) -> list[Order]:
+        return self.order_repository.list(user_id=user_id)   # scoping is a service decision
+```
+
+A bonus: cross-cutting checks — authorization, validation, invariants (for example, "you may only touch your own records") — belong in the service, not in a repository method or a per-route hook. Put a check in the service and it is defined once and inherited by every entry point that calls through it. Reimplement it per route or per verb and the paths drift: one of them inevitably gets missed. The service raises a domain error; the view layer catches it and maps it to the right protocol response.
+
 ## One level of abstraction per method
 
 A method should read at a single level of abstraction. If the top of the method talks about high-level steps and the bottom is doing raw query construction or mutation details, split it: the outer method stays at the orchestration level and delegates each step to a helper that owns the details.
@@ -169,6 +209,18 @@ def archive_expired_records(batch: Batch) -> None:
 ```
 
 The first version forces the reader to context-switch between "what are we doing" and "how do we do each piece." The second reads like a sentence and each helper can be understood (and tested) on its own.
+
+### Decompose for reuse, not just for shorter methods
+
+Splitting a long method into private helpers makes the parent shorter but can leave the pieces just as coupled — each helper still depends on the parent's state and can't be called from anywhere else. That is decomposition in appearance only. Aim for helpers that are **independently reusable**: prefer public methods with explicit parameters over private ones that read shared fields, and keep per-call scratch state (caches, accumulators, running maps) **local to the orchestrating method** rather than threaded through every helper's signature. If a helper only makes sense as step three of one specific parent, it hasn't been decomposed — it's been hidden. A good test: could another caller use this method on its own? If not, rework the seam.
+
+### Split a service the moment it grows a second concept
+
+A service that keeps accreting logic — several private helpers, a chunk of state passed around, a cluster of methods that all serve one sub-task — is usually two services wearing one coat. When a region of a service starts to read like a distinct domain concept (generation, scheduling, pricing, reconciliation), extract it into its own dedicated service with its own dependencies. Don't wait for a hard rule to force the split; actively watch for the crowding and separate concerns early, while the seam is still cheap to cut. The signal is qualitative: "this part is really about a different thing" is enough reason to extract.
+
+### Let value objects carry pure computed accessors
+
+A value object isn't limited to raw fields. It can expose **accessors that re-shape its own data** — a settings object that offers `enabled_types` instead of making every caller filter the raw flags, a date range that offers `length_in_days`. These are pure: they compute only from data already on the object, make no queries and reach no external state, and exist to give callers a more convenient view. Pushing this presentation logic onto the value object shrinks every service that would otherwise repeat the same derivation, and it stays honest because it can't touch the database. This is distinct from the "no fat models" rule: a fat model hangs *business operations and persistence* off a record; a value-object accessor only re-shapes or derives data the object already holds.
 
 ## Tests
 
