@@ -11,6 +11,11 @@
 
 <1–3 sentence summary of what we're trying to accomplish and why.>
 
+## Links
+
+<PRs, issues, related docs.>
+
+
 ## Task list
 
 Split todos by who does them. The scratchpad skill scans `### Agent` on
@@ -54,10 +59,6 @@ appends to the prior one — do not let it go stale.>
 ## Verification Commands
 
 <Test, lint, typecheck commands relevant to this task.>
-
-## Links
-
-<PRs, issues, related docs.>
 
 ---
 

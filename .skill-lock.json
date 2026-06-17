@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "skills": {
+    "explain-like-socrates": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills.git",
+      "skillPath": "skills/explain-like-socrates/SKILL.md",
+      "skillFolderHash": "a0404beeebc7f16105d852cdf4c93b457c3546d3",
+      "installedAt": "2026-06-17T15:17:50.458Z",
+      "updatedAt": "2026-06-17T15:17:50.458Z"
+    }
+  },
+  "dismissed": {
+    "findSkillsPrompt": true
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "antigravity-cli",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-code-cli",
+    "opencode",
+    "warp",
+    "zed",
+    "pi"
+  ]
+}
