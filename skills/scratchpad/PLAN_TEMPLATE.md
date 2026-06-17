@@ -2,24 +2,25 @@
 
 - **Started**: YYYY-MM-DD
 - **Status**: in progress
+- **Project**: <project-slug>
+- **Task title**: 🧩 <task-slug>
 - **Repository**: none
 - **Worktree**: none
-- **Zellij session**: task-<slug>
-  - **Panes**: plan
+- **Cmux workspace**: 🧩 <task-slug>
+  - **Tabs**: 📝 neovim, 🤖 pi, 🐚 terminal
 
 ## Overview
 
-<1–3 sentence summary of what we're trying to accomplish and why.>
+<1–3 sentence summary of what this task should accomplish and why it matters to the project.>
 
 ## Links
 
-<PRs, issues, related docs.>
-
+<PRs, issues, docs, dashboards, conversations, or source material.>
 
 ## Task list
 
-Split todos by who does them. The scratchpad skill scans `### Agent` on
-startup and offers to dispatch the open items.
+Split todos by who does them. The scratchpad skill scans `### Agent` on startup
+and offers to dispatch open Agent items.
 
 ### Human
 
@@ -32,9 +33,9 @@ startup and offers to dispatch the open items.
 When the scratchpad dispatches an Agent todo, annotate it inline with the tab
 and current status, e.g.:
 
-- `[ ] Refactor foo — tab: subagent-foo, status: running`
-- `[x] Refactor foo — tab: subagent-foo, status: done`
-- `[ ] Refactor foo — tab: subagent-foo, status: blocked (auth)`
+- `[ ] Refactor foo — tab: 🕵️ subagent-foo, status: running`
+- `[x] Refactor foo — tab: 🕵️ subagent-foo, status: done`
+- `[ ] Refactor foo — tab: 🕵️ subagent-foo, status: blocked (auth)`
 
 ## Decisions
 
@@ -49,8 +50,7 @@ Format: `YYYY-MM-DD — <decision>. Rationale: <why>.`>
 
 <Rolling, self-contained summary so a fresh session can resume without re-reading
 the whole conversation. Keep it current: where things stand, what was just
-decided or discovered, and the immediate next step. Newest summary replaces or
-appends to the prior one — do not let it go stale.>
+decided or discovered, and the immediate next step.>
 
 ## Files Touched
 
@@ -58,7 +58,7 @@ appends to the prior one — do not let it go stale.>
 
 ## Verification Commands
 
-<Test, lint, typecheck commands relevant to this task.>
+<Test, lint, typecheck, query, or manual verification commands relevant to this task.>
 
 ---
 
@@ -67,27 +67,17 @@ appends to the prior one — do not let it go stale.>
 The top metadata block is the source of truth for `/scratchpad` and
 `/scratchpad-sync`. Keep these lines parseable:
 
-- `### Human` / `### Agent` subheadings under `## Task list` — the scratchpad
-  scans the `### Agent` list on every startup.
+- `**Project**:` — Project slug from the filesystem, not the emoji display title.
+- `**Task title**:` — Display title with emoji for the task.
+- `**Repository**:` — Either `none` or the short name accepted by `dev cd`.
+- `**Worktree**:` — Either `none` or an absolute path to a task-scoped git worktree.
+- `**Cmux workspace**:` — Display title for the task's Cmux Workspace.
+- `**Tabs**:` — Comma-separated Cmux tab titles. New tasks default to `📝 neovim`, `🤖 pi`, `🐚 terminal`.
 - Agent todo annotation: `— tab: <tab>, status: <state>` after the item text.
   States: `queued`, `running`, `done`, `blocked (<reason>)`.
 
+Default task workspace behavior:
 
-Metadata bullets:
-
-- `**Repository**:` — either `none` or the short name accepted by `dev cd`
-  (e.g. `ads-data`, `ad-network-connectivity`). When set, every Zellij pane
-  starts by running `dev cd <repo>` so the shell lands in the repo with the
-  dev environment activated.
-- `**Worktree**:` — either `none` or an absolute path to a git worktree
-  directory (typically `<repo>/.worktrees/<branch>`). When set, both skills
-  ensure the worktree exists on disk and create it if missing. Panes with a
-  repo and a worktree run `dev cd <repo>` then `cd <worktree-relative-path>`.
-- `**Zellij session**:` — single session name; defaults to `task-<slug>`.
-- `**Panes**:` — comma-separated list of pane names. Each pane maps to a Zellij
-  tab in the rebuilt session (one tab per pane, one pane per tab). Optional
-  inline parens may add a short description, e.g. `plan (todos), pi (agent),
-  code (editor)`.
-
-Multi-session tasks are rare. If needed, repeat the `Zellij session` /
-`Panes` bullets for each session.
+- `📝 neovim`: cwd = Task folder; command = `nvim plan.md`.
+- `🤖 pi`: cwd = Worktree when present, otherwise Task folder; command = `pi`.
+- `🐚 terminal`: cwd = Worktree when present, otherwise Task folder; plain shell.

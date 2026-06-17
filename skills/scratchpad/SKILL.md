@@ -1,424 +1,401 @@
 ---
 name: scratchpad
-description: "Per-task plan.md scratchpad with active/completed task folders. Discover or create a task folder under the user's active tasks directory, keep a living plan.md updated as work progresses, and on completion run a task-scoped retrospective then tear down the workspace — remove the worktree, delete the Zellij session, and move the folder to completed. Trigger: user says 'scratchpad', '/scratchpad', 'open the scratchpad', 'I'm done with this task', or starts a multi-step task that needs a written plan."
+description: "Project/task scratchpad organized around Cmux. Projects live under a Projects root and map to Cmux Groups; tasks live under projects and map to Cmux Workspaces. Maintains project.md and per-task plan.md, opens project/task workspaces with Neovim, pi, and terminal tabs, and tears down task workspaces safely on completion. Trigger: user says 'scratchpad', '/scratchpad', 'open the scratchpad', 'I'm done with this task', or starts a multi-step task that needs a written plan."
 ---
 
 # scratchpad
 
-Maintain a markdown plan for every multi-step task. Active work lives under
-`active/`; finished work moves to `completed/`. The plan captures a metadata
-header (start date, status, repository, worktree, Zellij session/panes), the
-overview, task list, decisions, open questions, a rolling context snapshot,
-files touched, and verification commands.
+Maintain markdown scratchpads for project-level context and task-level plans.
+Projects are the top-level unit of organization. A Project maps to a Cmux Group.
+A Task maps to a Cmux Workspace inside that Group.
 
-Keep the plan trustworthy enough that a fresh session (or `/scratchpad-sync`)
-can resume the task and rebuild the workspace (worktree + Zellij session) from
-`plan.md` alone.
+The filesystem is the durable source of truth; Cmux runtime identifiers are not.
+Keep the files trustworthy enough that `/scratchpad-sync` can rebuild useful
+Cmux Groups, Workspaces, and tabs from disk.
+
+## Model
+
+- **Project**: a body of work, such as Ads Data Migration. It has one
+  `project.md` and one Cmux Group title, for example `🚚 ads-data-migration`.
+- **Task**: a concrete slice of work inside a Project. It has one `plan.md` and
+  one Cmux Workspace title, for example `🧪 test-dbt-model-pipeline`.
+- **Tab**: a Cmux Surface inside the Workspace's main Pane. Use these like the
+  old Zellij tabs.
 
 ## Configuration
 
-- **Tasks root**: `/Users/jeanmark.wright/Documents/JMxShopify/Tasks`
-- **Active tasks root**: `/Users/jeanmark.wright/Documents/JMxShopify/Tasks/active`
-- **Completed tasks root**: `/Users/jeanmark.wright/Documents/JMxShopify/Tasks/completed`
-- **Discovery window**: last 7 days
-- **Plan template**: `PLAN_TEMPLATE.md` in this skill directory
+- **Projects root**: `/Users/jeanmark.wright/Documents/JMxShopify/Projects`
+- **Active projects root**: `/Users/jeanmark.wright/Documents/JMxShopify/Projects/active`
+- **Upcoming projects root**: `/Users/jeanmark.wright/Documents/JMxShopify/Projects/upcoming`
+- **Completed projects root**: `/Users/jeanmark.wright/Documents/JMxShopify/Projects/completed`
+- **Task plan template**: `PLAN_TEMPLATE.md` in this skill directory.
+
+The old `/Users/jeanmark.wright/Documents/JMxShopify/Tasks` tree is not a normal
+source of truth after migration. Do not create new work there and do not scan it
+for active work.
 
 ## Folder layout
 
 ```
-<TASKS_ROOT>/
-  active/YYYY-MM-DD-kebab-readable-name/plan.md
-  completed/YYYY-MM-DD-kebab-readable-name/plan.md
+<PROJECTS_ROOT>/
+  active/
+    ads-data-migration/
+      project.md
+      tasks/
+        active/
+          2026-06-16-test-dbt-model-pipeline/
+            plan.md
+        upcoming/
+        completed/
+  upcoming/
+    job-deferrer/
+      project.md
+      tasks/
+        active/
+        upcoming/
+        completed/
+  completed/
+    finished-project/
+      project.md
+      tasks/
+        completed/
+          2026-05-14-finished-task/
+            plan.md
 ```
 
-- One folder per task. Date prefix is the day the task started.
-- Slug: lower-kebab-case, 3–6 words, captures the *what* not the *how*.
-- Root-level task folders are legacy. When discovered, move them into `active/`
-  unless their `Status` is `done` or `completed`; then move them into
-  `completed/`. Never overwrite an existing destination.
+Rules:
 
-## Plan metadata header
+- Project and task folder names are ASCII lower-kebab-case slugs. Store emojis
+  in metadata and Cmux titles, not folder names.
+- Project folder status is coarse: `active`, `upcoming`, or `completed`.
+- Task folder status is coarse: `active`, `upcoming`, or `completed`.
+- Finer task states such as `in review`, `blocked`, or `paused` stay in
+  `plan.md`; they do not require separate folders.
+- Never overwrite or merge folders. If a destination exists, stop and ask.
 
-Every plan starts with a bullet block. These five fields are the source of
-truth for both this skill and `/scratchpad-sync`:
+## Project metadata
+
+Every Project has `project.md` at the Project folder root. The top bullet block
+is parseable metadata used by this skill and `/scratchpad-sync`:
+
+```markdown
+- **Started**: YYYY-MM-DD
+- **Status**: active
+- **Project slug**: ads-data-migration
+- **Project title**: 🚚 ads-data-migration
+- **Cmux group**: 🚚 ads-data-migration
+- **Project workspace**: 🧭 project
+  - **Tabs**: 📝 neovim, 🤖 pi
+```
+
+Rules:
+
+- Keep the bullet labels in bold exactly as shown.
+- `Status` values for Projects: `active`, `upcoming`, `completed`.
+- Suggest a project emoji when creating a Project and store it in `Project title`
+  and `Cmux group`.
+- `Cmux group` is a display title, not a Cmux runtime identifier.
+- Project workspace tabs:
+  - `📝 neovim`: cwd = Project folder; command = `nvim project.md`.
+  - `🤖 pi`: cwd = Project folder; command = `pi`.
+
+## Task metadata
+
+Every Task has `plan.md` in the Task folder. The top bullet block is parseable
+metadata used by this skill and `/scratchpad-sync`:
 
 ```markdown
 - **Started**: YYYY-MM-DD
 - **Status**: in progress
-- **Repository**: <repo-name>   (or `none`)
-- **Worktree**: /abs/path/to/repo/.worktrees/<branch>   (or `none`)
-- **Zellij session**: task-<slug>
-  - **Panes**: plan, pi, code
+- **Project**: ads-data-migration
+- **Task title**: 🧪 test-dbt-model-pipeline
+- **Repository**: ads-data   (or `none`)
+- **Worktree**: /abs/path/to/repo/.worktrees/<branch-or-task>   (or `none`)
+- **Cmux workspace**: 🧪 test-dbt-model-pipeline
+  - **Tabs**: 📝 neovim, 🤖 pi, 🐚 terminal
 ```
 
 Rules:
 
-- Keep the bullet labels in bold exactly as shown — both skills parse on them.
+- Keep the bullet labels in bold exactly as shown.
 - `Status` values: `in progress`, `blocked`, `paused`, `in review`, `done`,
-  `completed`. Only `done`/`completed` move the folder to `completed/`.
-- `Repository` is either `none` or the short name accepted by `dev cd`
-  (e.g. `ads-data`, `ad-network-connectivity`). When set, every Zellij pane
-  starts by running `dev cd <repo>` so the shell lands in the repo with the
-  dev environment activated.
-- `Worktree` is either `none` or an absolute path. When it is a path, the
-  directory at that path must be a real git worktree; this skill creates it on
-  demand (see "Worktree setup" below). Panes that have both a repo and a
-  worktree run `dev cd <repo>` followed by `cd <worktree-relative-path>` so
-  the shell ends up inside the worktree.
-- `Zellij session` defaults to `task-<slug>`. `Panes` is a comma-separated
-  list; each pane maps to one Zellij tab when the session is built.
+  `completed`. Only `done`/`completed` move the task folder to
+  `tasks/completed/`.
+- `Project` is the Project slug, not the emoji title.
+- `Task title` and `Cmux workspace` are display titles. Suggest task emojis and
+  store them here.
+- `Repository` is either `none` or the short name accepted by `dev cd`.
+- `Worktree` is either `none` or an absolute path to a git worktree.
+- Worktrees remain task-scoped. Project workspaces do not own worktrees.
+- New tasks default to exactly these tabs: `📝 neovim`, `🤖 pi`, `🐚 terminal`.
+- Migrated tasks may preserve their old tab list, mapped to emoji display
+  titles. Do not force-add missing defaults to migrated plans unless the user
+  asks.
 
-Legacy plans use plain `Started:`/`Status:` lines and a separate
-`## Zellij Sessions` table. Read those when present, but write the new bullet
-format on any new plan.
+## Cmux conventions
+
+Use Cmux Groups, Workspaces, and tab Surfaces as the scratchpad user interface:
+
+- Project = Cmux Group.
+- Project home = `🧭 project` Workspace inside the Group.
+- Task = Cmux Workspace inside the Project Group.
+- Tab = Cmux Surface inside the Workspace's main Pane.
+
+Default task workspace tabs:
+
+- `📝 neovim`: cwd = Task folder; command = `nvim plan.md`.
+- `🤖 pi`: cwd = Worktree when present, otherwise Task folder; command = `pi`.
+- `🐚 terminal`: cwd = Worktree when present, otherwise Task folder; plain shell.
+- Extra historical or subagent tabs: cwd = Worktree when present, otherwise Task
+  folder; plain shell unless the plan explicitly says otherwise.
+
+Cmux command notes:
+
+- Inspect Groups with `cmux workspace-group list --json`.
+- Create a Workspace with `cmux new-workspace --name <title> --cwd <path> --command <command>`.
+- Create a Group from a known Workspace with
+  `cmux workspace-group create --name <group-title> --from <workspace-ref>`.
+- Add a Workspace to a Group with
+  `cmux workspace-group add --group <group-ref> --workspace <workspace-ref>`.
+- Find the main Pane with `cmux list-panes --workspace <workspace-ref>`.
+- Add a tab Surface with
+  `cmux new-surface --type terminal --workspace <workspace-ref> --pane <pane-ref> --working-directory <path>`.
+- Title tabs with `cmux rename-tab --workspace <workspace-ref> --surface <surface-ref> <title>`.
+- Launch commands in new tabs with
+  `cmux send --workspace <workspace-ref> --surface <surface-ref> <text>`.
+- Never call `cmux workspace-group create` without `--from`; omitting `--from`
+  uses the active sidebar selection and can group the wrong workspace.
+- Never close or recreate a running user workspace unless the user explicitly
+  asked for teardown.
 
 ## Phase 1: Discovery
 
-Before writing anything, identify the task.
+Before writing anything, identify the Project and Task.
 
-1. Ensure `active/` and `completed/` exist under `<TASKS_ROOT>`.
-2. Find recent legacy folders directly under `<TASKS_ROOT>`. For each one, read
-   `plan.md`, move it into the correct state folder based on `Status`, and stop
-   to ask if the destination already exists.
-3. List recent task folders in `active/`. Sort newest first and surface today's
-   folders first.
-4. Ask the user to choose one active folder or "Create a new task folder" with a
-   single-select `ask` tool call.
-5. If the user chooses an active folder, read `plan.md` and confirm the summary
-   in one line before proceeding. Then run **Repository and worktree setup** so
-   the worktree exists, run **Zellij session setup** so the session is live,
-   and run **Agent todo review** before doing anything else.
-6. If the user chooses "new", confirm the readable name and slug, ask the
-   worktree questions (see "Repository and worktree setup"), then create
-   `<TASKS_ROOT>/active/<TODAY>-<slug>/plan.md` from `PLAN_TEMPLATE.md` with
-   the metadata header filled in. Immediately run **Zellij session setup** to
-   bring the session up. Skip Agent todo review for fresh tasks —
-   there are no open agent items yet.
-7. Skip the prompt only when the user already named the task and it exact-or-fuzzy
-   matches an active folder.
+1. Ensure `active/`, `upcoming/`, and `completed/` exist under
+   `<PROJECTS_ROOT>`.
+2. List active Projects first, then upcoming Projects. Read each `project.md` so
+   the choices show the display title and current context.
+3. Ask the user to choose one Project, create a new Project, open Project-only
+   mode, or view completed Projects.
+4. If the user chooses an existing Project, read `project.md`, summarize the
+   Project in one line, and run **Cmux Project setup**.
+5. If the user chooses Project-only mode, stop after opening the Project
+   workspace and updating `project.md` as needed.
+6. If a Task is needed, list that Project's `tasks/active/` first, then
+   `tasks/upcoming/`. Ask the user to choose a Task or create a new Task.
+7. If the user chooses an existing Task, read `plan.md`, summarize it in one
+   line, run **Repository and worktree setup**, run **Cmux Task setup**, then run
+   **Agent todo review**.
+8. If the user creates a new Task, confirm the readable name, slug, and
+   suggested emoji title. Create `tasks/active/<slug>/plan.md` from
+   `PLAN_TEMPLATE.md`, fill the metadata, run **Repository and worktree setup**,
+   then run **Cmux Task setup**. Skip Agent todo review for fresh tasks.
+9. If the user asks to view completed work, list matching Projects or Tasks.
+   Viewing is read-only. Reopening requires confirmation and moves the Project
+   or Task to the appropriate `active/` folder.
 
-If the user asks to view or reopen completed work, list matching folders under
-`completed/`. Viewing is read-only. Reopening requires confirmation, then move
-the folder to `active/` and set `Status: in progress`.
+Skip prompts only when the user already named a Project/Task and it exact-or
+fuzzy-matches an existing active folder.
+
+## Cmux Project setup
+
+Bring the Project's Cmux Group and `🧭 project` Workspace up when opening or
+creating a Project.
+
+1. Read `project.md` for `Cmux group`, `Project workspace`, and Project tabs.
+2. If a Group with the same `Cmux group` display title already exists, leave it
+   alone and use it.
+3. If the Group is missing, create the Project workspace first, then create the
+   Group from that workspace with `cmux workspace-group create --from`.
+4. Ensure the Project workspace has the requested tabs:
+   - `📝 neovim` opens `nvim project.md` in the Project folder.
+   - `🤖 pi` runs `pi` in the Project folder.
+5. Do not duplicate a tab that already exists.
+6. Report the Group title and attach/focus hint in one line.
+
+## Repository and worktree setup
+
+Run this whenever opening or creating a Task that touches code.
+
+1. Decide whether a repo applies. Research, planning, and docs-only tasks can
+   use `Repository: none` and `Worktree: none`.
+2. Ask for the short repo name accepted by `dev cd` when code or tests are
+   involved. Record it in `**Repository**:`.
+3. Decide whether a worktree applies. Quick exploration can use `Worktree: none`.
+   Code-edit tasks that need isolation get a task-scoped worktree.
+4. Default to deferring the branch name. Create detached worktrees at `main` so
+   the branch can be named later from the actual work. Only create a branch up
+   front if the user explicitly names one.
+5. Build the default worktree path from the task slug:
+   `<repo>/.worktrees/<task-slug>`.
+6. Create on demand only when missing:
+   - Detached on main: `git -C <repo> worktree add --detach <path> main`.
+   - Explicit new branch: `git -C <repo> worktree add <path> -b <branch>`.
+   - Explicit existing local branch: `git -C <repo> worktree add <path> <branch>`.
+7. If the requested branch is checked out elsewhere, stop and ask. Never force.
+8. Record the absolute path in `**Worktree**:` and verify with
+   `git -C <repo> worktree list`.
+
+When opening an existing Task whose `Worktree` path is missing, recreate it with
+the same logic. If the plan says branch creation was deferred, recreate detached
+at `main` rather than inventing a branch from the path.
+
+Never remove a worktree here. Worktree removal only happens in task completion.
+
+## Cmux Task setup
+
+Bring the Task's Cmux Workspace up when opening or creating a Task.
+
+1. Read `plan.md` for `Cmux workspace`, `Tabs`, `Repository`, and `Worktree`.
+2. Ensure the Project Group exists by running **Cmux Project setup**.
+3. If a Workspace with the same `Cmux workspace` title already exists in the
+   Project Group, leave it running and do not disturb its tabs.
+4. If it is missing, create a new Workspace and add it to the Project Group.
+5. Create the default tabs for new tasks:
+   - `📝 neovim`: cwd = Task folder; command = `nvim plan.md`.
+   - `🤖 pi`: cwd = Worktree when present, otherwise Task folder; command = `pi`.
+   - `🐚 terminal`: cwd = Worktree when present, otherwise Task folder.
+6. For migrated tasks, create tabs from the recorded tab list. Preserve the
+   plan's existing tab list rather than forcing defaults.
+7. Verify the Workspace appears under the Project Group with `cmux tree --all`
+   or `cmux workspace-group list --json`.
 
 ## Agent todo review
 
-Run this every time an existing task is opened, before any other work.
+Run this every time an existing Task is opened, before any other work.
 
 1. Read the `## Task list` → `### Agent` subsection.
-2. Collect open agent items (`[ ]`, not annotated as `status: running`).
-3. If there are none, say so in one line and continue.
-4. Otherwise list the open agent items to the user with a single-select `ask`
-   tool call:
-   - One option per item: "Dispatch now"
-   - Plus "Skip all" and "Pick a subset" (multi-select fallback).
-5. For each item the user approves, run **Dispatching agent todos** below.
-6. Items the user declines stay untouched; do not re-prompt next session
-   unless they change.
+2. Collect open Agent items (`[ ]`) that are not annotated as `status: running`.
+3. If none exist, say so in one line and continue.
+4. Ask the user which Agent todos to dispatch. Never start one without approval.
+5. For approved todos, follow **Dispatching Agent todos**.
 
-The goal is alignment: the user confirms what the agent should take on this
-session before the agent burns context on it.
+## Dispatching Agent todos
 
-## Dispatching agent todos
+When an Agent todo is approved:
 
-When an Agent todo is approved for execution:
-
-1. **Prefer subagents.** Use `superpowers_dispatch` (or `subagent` for project
-   agents) so the lead session's context stays clean. Dispatch one subagent
-   per todo unless items obviously share state. Give each subagent the full
-   task text plus the relevant paths — don't make them read the plan.
-2. **Open a Zellij tab for visibility.** Add a tab to the task's Zellij
-   session so the user can attach and watch the subagent's progress:
-
-   ```sh
-   zellij --session <session> action new-tab \
-     --name <tab-name> --cwd <worktree-or-task-folder>
-   ```
-
-   Tab name: short, lower-kebab-case, prefixed `subagent-` (e.g.
-   `subagent-refactor-foo`). If the Zellij session isn't running, fall back
-   to a pure `superpowers_dispatch` (no tab) and note this in the
-   annotation.
-3. **Launch the work in that tab.** Send the agent's invocation to the tab,
-   typically by writing the prompt with `zellij action write-chars` and a
-   carriage return, or by using a small KDL layout fragment with a `command`
-   line. Choose whichever fits the dispatched tool.
-4. **Update the plan immediately.** Annotate the todo inline:
-
-   ```
-   - [ ] Refactor foo — tab: subagent-refactor-foo, status: running
-   ```
-
-   And append the new pane to the `**Panes**:` bullet in the metadata
-   header so `/scratchpad-sync` can recreate the tab next time.
-5. **Track to completion.** When the subagent reports done, flip the todo to
-   `[x]` and update the annotation to `status: done`. On failure, set
-   `status: blocked (<one-line reason>)` and add an Open Question if action
-   is needed.
+1. Prefer `superpowers_dispatch` or `subagent` so the lead session stays clean.
+2. Create a Cmux tab Surface in the Task workspace for visibility, titled like
+   `🕵️ subagent-pr-risk-critique`.
+3. Start the tab in the Worktree when present, otherwise the Task folder.
+4. Launch the agent invocation in that tab when practical. If the dispatch tool
+   cannot be launched inside the tab, still create the tab for notes/logs and
+   explain the fallback.
+5. Update the plan immediately:
+   - Annotate the todo: `— tab: 🕵️ subagent-foo, status: running`.
+   - Append the tab title to the `**Tabs**:` metadata if it is not already there.
+6. On completion, check off the todo and update `status: done`. On failure, set
+   `status: blocked (<one-line reason>)` and add an Open Question if needed.
 
 Rules:
 
 - Never dispatch parallel agents that modify the same files.
-- Never silently delete the annotation when checking off an item — it is the
-  audit trail for what happened.
-- Never start work on an Agent todo without explicit user approval in the
-  review step above.
+- Never silently delete Agent todo annotations; they are the audit trail.
 
-## Repository and worktree setup
+## Live updates
 
-Run this whenever opening or creating a task that touches code.
+Update `plan.md` whenever:
 
-1. **Decide whether a repo applies.** Research / planning / docs-only tasks
-   don't need one — set `Repository: none` and `Worktree: none` and skip the
-   rest. Any task that will run code, tests, or `dev` commands should record
-   a repo.
-2. **Record the repository.** Ask the user for the short repo name accepted
-   by `dev cd` (default: the repo containing the current working directory).
-   Write it into the `**Repository**:` bullet. This drives the `dev cd <repo>`
-   startup command in every Zellij pane.
-3. **Decide whether a worktree applies.** Quick exploration or single-branch
-   work can stay in the main checkout — set `Worktree: none` and stop here.
-   Code-edit tasks that need an isolated workspace get a worktree.
-4. **Default to deferring the branch.** Do not create a named branch up front.
-   A fresh worktree starts **detached at `main`'s tip** so the branch name can
-   reflect the actual committed work, decided once there is code to commit. Only
-   create the branch now if the user explicitly names one (e.g. resuming known
-   work). Sanitize any explicit branch name to a valid git ref.
-5. **Build the worktree path** from the task slug: `<repo>/.worktrees/<slug>`
-   (or `<repo>/.worktrees/<branch>` when an explicit branch was given). Confirm
-   the absolute path with the user once before creating.
-6. **Create on demand**, only when the path doesn't already exist:
-   - Detached on main (default, no branch yet):
-     `git -C <repo> worktree add --detach <path> main`
-   - Explicit new branch: `git -C <repo> worktree add <path> -b <branch>`
-   - Explicit existing local branch:
-     `git -C <repo> worktree add <path> <branch>`
-   - If the requested branch is checked out elsewhere, stop and ask — never
-     force. (A detached worktree at `main` is always safe even when `main` is
-     checked out in the primary tree.)
-7. **Record** the absolute path in the `**Worktree**:` bullet. Do not record
-   the bare branch name. For a detached worktree, add a sub-bullet noting it is
-   detached on `main` and the branch is deferred.
-8. **Verify** with `git -C <repo> worktree list` and confirm the new entry.
-9. **Create the branch later, from inside the worktree**, once there is code to
-   commit: `git -C <path> switch -c <branch>`. Pick the branch name to match
-   the work, then update the `**Worktree**:` sub-bullet accordingly.
+1. A task item is completed.
+2. A new task item is identified.
+3. A decision is made.
+4. A new open question surfaces.
+5. A file is created or modified and not listed in Files Touched.
+6. Status changes.
+7. Cmux tabs are added, removed, renamed, or repurposed.
+8. The task gains or changes a repo/worktree.
+9. A subagent starts, finishes, or changes status.
 
-When opening an existing task whose `Worktree` path is missing on disk,
-recreate it with the same logic. The repo root is the path with
-`/.worktrees/<name>` stripped, which should match the recorded `Repository`.
-If the sub-bullet says the worktree is detached / branch deferred, recreate it
-detached at `main` (`git -C <repo> worktree add --detach <path> main`) rather
-than inventing a branch from the path's last component.
+Update `project.md` whenever:
 
-`.worktrees/` is covered by the user's global gitignore
-(`~/.config/git/ignore`), so no repo `.gitignore` changes are required.
+1. Project status changes.
+2. Project-level decisions or context change.
+3. Tasks are added, moved, completed, reopened, or removed from the Project.
+4. The Project emoji/title/Cmux Group title changes.
 
-## Zellij session setup
+Use `edit` with small targeted edits. Preserve manual edits.
 
-Bring the task's Zellij session up immediately — on new-task creation and when
-opening an existing task — so the workspace is ready without a separate
-`/scratchpad-sync` run. This mirrors `scratchpad-sync`'s session-building logic
-for a single task.
+## Context syncing
 
-1. **Skip if already running.** Run `zellij list-sessions --no-formatting`. If
-   `<session-name>` (default `task-<slug>`) is running, leave it alone. If a
-   same-named session is `EXITED`/dead, delete it first with
-   `zellij delete-session <name>`.
-2. **Pick the cwd.** Worktree path if set; else the repo path; else the task
-   folder.
-3. **Pick the pane command** from the metadata:
-   - Repo + worktree: `zsh -i -c "dev cd <repo>; cd <worktree-relative-path>; exec zsh -i"`
-     (`<worktree-relative-path>` is typically `.worktrees/<name>`).
-   - Repo only: `zsh -i -c "dev cd <repo>; exec zsh -i"`.
-   - No repo: omit the command; the pane inherits `cwd` with a plain shell.
-4. **Write a KDL layout** to a scratch path with one `tab` per pane in the
-   `**Panes**:` bullet, and **always** include `default_tab_template` with the
-   `tab-bar` and `status-bar` plugins around `children` (otherwise tabs render
-   bare). Template:
+Keep `project.md` and `plan.md` resumable.
 
-   ```kdl
-   layout {
-       default_tab_template {
-           pane size=1 borderless=true {
-               plugin location="tab-bar"
-           }
-           children
-           pane size=1 borderless=true {
-               plugin location="status-bar"
-           }
-       }
-       cwd "/abs/path/to/worktree"
-       tab name="plan" {
-           pane command="zsh" {
-               args "-i" "-c" "dev cd <repo>; cd .worktrees/<name>; exec zsh -i"
-           }
-       }
-       tab name="pi" {
-           pane command="zsh" {
-               args "-i" "-c" "dev cd <repo>; cd .worktrees/<name>; exec zsh -i"
-           }
-       }
-   }
-   ```
+- `project.md` should summarize the Project's purpose, current active tasks,
+  important decisions, and next project-level move.
+- `plan.md` should summarize the current task state, what just happened, and
+  the immediate next step.
+- Refresh `## Context Snapshot` instead of appending stale summaries.
+- Move resolved Open Questions into Decisions.
+- Keep Decisions, completed Task list history, and Files Touched append-only.
 
-   KDL notes: each `pane` block on its own lines (no one-liners); `args` are
-   positional string tokens, not space-joined; `children` sits on its own line.
-5. **Create it detached** so it never steals the current terminal:
-   `zellij -n <layout-path> attach --create-background <session-name>`.
-6. **Verify** tabs with
-   `zellij --session <session-name> action query-tab-names`, then tell the user
-   the attach hint: `zellij attach <session-name>`.
+## Moving folders
 
-## Phase 2: Live updates
-
-Update plan.md whenever:
-
-1. A task item is completed → flip `[ ]` to `[x]`. For agent todos, also
-   update the inline annotation to `status: done`.
-2. A new task item is identified → append to the right Task list subsection
-   (`### Human` or `### Agent`).
-3. A decision is made → append to Decisions with date and rationale.
-4. A new open question surfaces → append to Open Questions.
-5. A file is created/modified that is not listed → append to Files Touched.
-6. Status changes → update only the `**Status**:` bullet and apply the state
-   transition:
-   - `in progress`, `blocked`, `paused`, or `in review` stays in `active/`.
-   - `done` or `completed` runs **Task completion (teardown)**: it runs a
-     task-scoped retrospective, tears down the workspace, and moves the whole
-     task folder to `completed/`.
-   - Reopened work moves from `completed/` to `active/` after confirmation,
-     then sets `Status: in progress`.
-7. The Zellij session gains, loses, renames, or repurposes a pane → update the
-   `**Panes**:` bullet to match what is actually being used.
-8. The task gains a repo or worktree it didn't have before → run
-   **Repository and worktree setup** and write the values into
-   `**Repository**:` / `**Worktree**:`.
-9. A subagent is dispatched, finishes, or its status changes → update the
-   inline annotation on the matching Agent todo and the `**Panes**:` bullet.
-
-Use `edit` with small targeted edits. Preserve the user's manual edits.
-
-## Phase 3: Context syncing
-
-Keep the plan a faithful, resumable record of the task. The goal: someone (or a
-fresh agent session) can read `plan.md` and pick up exactly where work stopped.
-
-Sync the `## Context Snapshot` section whenever:
-
-1. A discussion reaches a natural conclusion or decision point — summarize what
-   was discussed, what was decided, and the immediate next step.
-2. The task is about to pause, the session is wrapping up, or the user steps
-   away — leave a self-contained summary so the next session needs no replay.
-3. Significant new understanding is reached (a discovery, a changed direction,
-   a resolved unknown).
-
-When syncing context:
-
-- Write the snapshot so it stands alone: where things are, what just happened,
-  and what to do next. Assume the reader has not seen the conversation.
-- Keep todos in sync at the same time: flip completed items to `[x]`, append
-  newly identified items, and remove items that are no longer relevant (note
-  the removal reason in Decisions if it is non-obvious).
-- Move resolved Open Questions into Decisions; add newly surfaced ones.
-- Refresh, don't pile up: the Context Snapshot should describe the *current*
-  state, not a chronological transcript. Replace stale wording. Keep it terse.
-- This is the one section where rewriting (not just appending) is expected, so
-  the snapshot stays accurate. Decisions, Task list history, and Files Touched
-  remain append-only.
-
-## Moving task folders
-
-- Create the destination state folder first if needed.
-- Move the whole task directory with `mv`; do not copy only `plan.md`.
+- Create destination status folders first.
+- Move whole Project or Task directories with `mv`; do not copy only markdown.
 - If the destination path exists, stop and ask; never overwrite or merge.
-- After a move, use the new `plan.md` path for the rest of the session.
+- After a move, use the new path for the rest of the session.
 
-## Task completion (teardown)
+## Task completion
 
-Run this when the user confirms a task is finished — "done", "I'm done with
-this task", "close out this task", "finish this one". A finished task should
-leave nothing running: the worktree is removed, the Zellij session is deleted,
-and the folder lands in `completed/`. Treat the done confirmation as the
-explicit authorization to remove the worktree — but never destroy uncommitted
-or unpushed work without asking.
+Run this when the user explicitly confirms a Task is finished.
 
-Do the steps in this order. Capture the learnings first while every resource
-still exists, verify safety next, tear down running resources, and move the
-folder **last** so the plan stays in place if teardown stops early.
+1. Restate the Project and Task names.
+2. Run a task-scoped retrospective before teardown. Load the `retrospect` skill,
+   scope it to this Task, and write `retro.md` beside `plan.md` plus a copy at
+   `~/retrospectives/<YYYY-MM-DD>-<task-slug>.md` when there is useful content.
+3. Set `**Status**:` to `done`.
+4. Tear down the task worktree only if `**Worktree**:` is a path that exists:
+   - Check `git -C <path> status --porcelain`; if dirty, stop and ask.
+   - Check for unpushed commits; if any could be lost, stop and ask.
+   - Remove with `git -C <repo> worktree remove <path>` only when safe or
+     explicitly approved. Use `--force` only with explicit discard approval.
+   - Run `git -C <repo> worktree prune`.
+   - Never delete branches automatically.
+5. Close only the Task's Cmux Workspace. Keep the Project Group and `🧭 project`
+   Workspace open.
+6. Move the Task folder to the Project's `tasks/completed/` folder.
+7. Report worktree, Cmux workspace, folder move, and retro paths in three lines.
 
-1. **Confirm intent.** Only proceed on an explicit done confirmation, never on
-   a guess. Restate the task name in one line so the right task is being closed.
-2. **Run a task-scoped retrospective.** Before anything is removed, harvest the
-   task's learnings while the plan, worktree commits, branch, and Zellij
-   session are all still available as source material. Load and follow the
-   `retrospect` skill from `~/.agents/skills/retrospect/SKILL.md`, but scope it
-   to this single task instead of the whole week:
-   - Source material is this task's `plan.md` (overview, decisions, open
-     questions, files touched, context snapshot) plus the worktree's git
-     history (`git -C <worktree-or-repo> log --oneline main..` for the work
-     committed on this task). Skip the week-wide conversation collector.
-   - Write the seven sections to `retro.md` in the task folder (next to
-     `plan.md`) so the retrospective travels with the task into `completed/`.
-     Also write a copy to `~/retrospectives/<YYYY-MM-DD>-<slug>.md` (today's
-     date, the task slug), not the undated weekly file, so per-task retros
-     don't collide and stay browsable in one place.
-   - If the plan is thin and there's genuinely nothing worth recording, say so
-     in one line and skip both files rather than padding.
-   Do not start teardown until the retro is written (or explicitly skipped).
-3. **Set the status.** Update the `**Status**:` bullet to `done` before any
-   teardown, so a plan read mid-teardown reflects the decision.
-4. **Tear down the worktree** — only if `**Worktree**:` is a path that exists on
-   disk (skip cleanly for `none` or a missing path):
-   - Guard against losing work. Check for uncommitted changes with
-     `git -C <path> status --porcelain`; if it prints anything, **stop** and
-     ask whether to commit, keep, or discard. Do not remove the worktree.
-   - Check for unpushed commits: `git -C <path> log --branches --not --remotes
-     --oneline` (or compare the worktree branch against its upstream). If
-     commits would be lost, warn and ask before removing.
-   - When clean (or the user explicitly approves discarding), remove it:
-     `git -C <repo> worktree remove <path>`. Use `--force` only when the user
-     has explicitly approved discarding the changes surfaced above.
-   - Tidy admin state: `git -C <repo> worktree prune`.
-   - Leave the branch alone. Never `git branch -D` unless the user asks; a
-     merged or pushed branch is theirs to keep.
-5. **Delete the Zellij session** named in `**Zellij session**:` (default
-   `task-<slug>`). Deleting the session disposes of every pane/subagent tab at
-   once:
-   - `zellij delete-session --force <session-name>` (the `--force` flag also
-     kills it if it is still running).
-   - Verify it is gone from `zellij list-sessions --no-formatting`.
-6. **Move the folder** to `completed/` using **Moving task folders** below.
-   Do this only after teardown succeeded (or the user chose to complete the
-   task while keeping the worktree).
-7. **Report** in three lines: worktree (removed / skipped — reason), Zellij
-   session (deleted / not running), folder (moved to `completed/<name>`).
-   Note the retro paths written in step 2 (`completed/<name>/retro.md` and the
-   `~/retrospectives/` copy).
+If teardown stops at a safety guard, leave the Task in `tasks/active/` and keep
+its workspace running.
 
-After teardown, stop auto-updating the plan unless the task is reopened.
-If teardown halts at the safety guard, leave the folder in `active/` and the
-session running so nothing is lost; resume once the user resolves the work.
+## Project completion
+
+Run this only when the user explicitly confirms a Project is finished.
+
+1. Refuse to complete the Project while any task remains in `tasks/active/`
+   unless the user chooses how to handle those tasks.
+2. Update `project.md` `**Status**:` to `completed`.
+3. Move the whole Project folder to `<PROJECTS_ROOT>/completed/`.
+4. Close the Project Group only after the folder move succeeds.
+5. Report the new Project path and closed Group title.
+
+Do not auto-complete a Project just because the last active Task completed.
 
 ## Execution rule
 
-Before executing implementation work from the task list, load and follow the
+Before executing implementation work from a Task list, load and follow the
 `tdd-implementation` skill from `~/.agents/skills/tdd-implementation/SKILL.md`.
 Do not write code or tests outside that loop.
 
 ## Hard rules
 
-- Never auto-create a task folder without explicit confirmation or an unambiguous discovery match.
-- Never overwrite plan.md content; only append, check off items, or update the metadata bullets — except the `## Context Snapshot` section, which is refreshed to stay current.
+- Never auto-create a Project or Task folder without explicit confirmation or an unambiguous discovery match.
+- Never overwrite `project.md` or `plan.md` wholesale during normal use; use small targeted edits, except refreshing `## Context Snapshot`.
 - Never delete Decisions, Files Touched, or completed Task list history.
-- Never overwrite or merge task folders during active/completed moves.
-- Never run `git worktree remove` outside the **Task completion (teardown)** flow. The done confirmation is the only automatic trigger, and even then never remove a worktree with uncommitted or unpushed work without asking first.
-- Never `git branch -D` a task's branch automatically — branch deletion is always an explicit user request.
-- Do not stage or commit task folders or plan.md unless explicitly asked.
-- Keep entries terse, factual, and dated. Avoid speculation.
+- Never overwrite or merge Project or Task folders.
+- Never run `git worktree remove` outside the **Task completion** flow.
+- Never remove a worktree with uncommitted or unpushed work without asking.
+- Never delete branches automatically.
+- Never stage or commit scratchpad folders unless explicitly asked.
+- Never call `cmux workspace-group create` without `--from`.
+- Never close a Project Group as part of Task completion; Project completion is explicit.
+- Keep entries terse, factual, and dated.
 
 ## Stop conditions
 
-- "Stop tracking" or "close the scratchpad" → set `Status: paused`; keep it in `active/` unless done is confirmed.
-- User confirms the task is done → run **Task completion (teardown)**: first run a task-scoped retrospective, then remove the worktree (after the uncommitted/unpushed safety check), delete the Zellij session, move the folder to `completed/`, and stop auto-updating unless reopened.
-- New unrelated task started → run Phase 1 before touching any plan.md.
+- "Stop tracking" or "close the scratchpad" for a Task → set the Task `Status` to `paused`; keep it in `tasks/active/` unless done is confirmed.
+- User confirms a Task is done → run **Task completion**.
+- User confirms a Project is done → run **Project completion**.
+- New unrelated Project or Task starts → run **Phase 1: Discovery** before touching any markdown.
+- A Cmux command would disturb an existing running workspace unexpectedly → stop and ask.
