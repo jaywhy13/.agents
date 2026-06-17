@@ -53,6 +53,26 @@ Exception: if I've explicitly worked through the trade-offs in the current conve
 
 ---
 
+# Tooling Workflows
+
+## Cmux sub-agent tabs
+
+When the user asks to open a sub-agent in a Cmux tab inside the existing workspace, create a new Cmux Surface in the current Workspace instead of a new Workspace.
+
+A Cmux Workspace is the task-level container. A Cmux Surface is a tab inside that Workspace. Opening a new Workspace is like starting a new desk; opening a new Surface is like adding a new tab to the current desk. If the user says "tab," they usually mean Surface.
+
+Use this sequence:
+
+1. Identify the target Workspace from `$CMUX_WORKSPACE_ID`, or from `cmux current-workspace` when the environment variable is missing.
+2. Find the target Pane with `cmux list-panes --workspace <workspace-ref>`.
+3. Create the tab with `cmux new-surface --type terminal --workspace <workspace-ref> --pane <pane-ref> --working-directory <path> --focus true`.
+4. Parse the `surface:N` token from output shaped like `OK surface:N pane:M workspace:W`. Do not parse the final token as the Surface; the final token is usually the Workspace.
+5. Rename the tab with `cmux tab-action --workspace <workspace-ref> --tab <surface-ref> --action rename --title <title>`.
+6. Start the sub-agent with `cmux send --workspace <workspace-ref> --surface <surface-ref> '<command>\n'`.
+7. Wait briefly, then verify with `cmux tree --all` and `ps` before telling the user it is running.
+
+Do not use `cmux_open_terminal` for this flow unless the user asks for a new Cmux workspace, split, pane, or separate terminal. Do not use `cmux new-workspace` unless the user explicitly asks for a separate Workspace.
+
 # Code Conventions
 
 ## Naming
