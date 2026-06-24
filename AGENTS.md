@@ -115,6 +115,25 @@ When a conditional result depends on a known set of cases, use one explicit bran
 
 Use whatever annotation mechanism the language provides to make types explicit — don't leave them implied just because the code runs without them. Explicit types make contracts readable, catch mistakes earlier, and reduce the need to trace callers to understand what a value holds.
 
+### Don't defeat the type checker with dynamic attribute access
+
+Reaching a field by a runtime-computed name — `getattr(obj, field_name)`, a string-keyed lookup table that maps one value to an attribute or column name, indexing into `obj.__dict__` — is invisible to the type checker. Rename or remove the underlying field and nothing flags the now-broken lookup; it fails silently at runtime instead. The same goes for a `FIELD_MAP = {SOME_ENUM: "some_field"}` dict that exists only to translate a known input into an attribute name: it's an indirection the type checker can't follow, and it's the dynamic cousin of the "clever ordering" anti-pattern — the connection between input and output is indirect, and a new case slots in silently.
+
+Replace it with an explicit, typed method that answers the question directly. If you find yourself doing `getattr(settings, day_field_name)` to ask "is this weekday enabled?", give the object an `is_week_day_enabled(isoweekday: int) -> bool` method (or one explicit branch per known case). Now a rename breaks the method body at type-check time, and the call site reads as the business question rather than a field-name lookup.
+
+```python
+# Dynamic lookup — type checker can't see the field, renames break silently
+FIELD_MAP = {Weekday.MONDAY: "monday_enabled", Weekday.TUESDAY: "tuesday_enabled"}
+if getattr(settings, FIELD_MAP[weekday]):
+    ...
+
+# Explicit typed accessor — rename breaks at type-check time, call site reads as intent
+if settings.is_week_day_enabled(weekday):
+    ...
+```
+
+Put this accessor on the typed value object that owns the data (see "Let value objects carry pure computed accessors"), not on the persistence model.
+
 ## Comments
 
 - Default to no comments. Add one only when the *why* is non-obvious — e.g. "the upstream API returns timestamps as Unix epoch but the display layer expects ISO 8601, so we convert here."
@@ -291,6 +310,10 @@ A value object isn't limited to raw fields. It can expose **accessors that re-sh
   ```
 
 - **Write focused tests — one concern per test.** A test that asserts on the return value, the database state, the log output, and the metrics all at once has too many reasons to break and too many places to look when it does. Give each concern its own test. The footprint grows, but each test has a clear purpose, failures point directly at the broken behaviour, and changing one concern doesn't disturb the others.
+
+- **Separate tests by level so the layout signals where a test belongs.** Don't pile high-level tests that exercise the public surface (API/view/end-to-end tests that go through the HTTP layer) into the same file as low-level tests of a single unit (model, serializer, value-object tests). Split them — typically a high-level subpackage (an `api/` or `integration/` folder) alongside unit-level files (`test_models`, `test_serializers`, …). The folder structure then tells a contributor at a glance where a new test goes and what altitude it operates at, and a failure's location hints at which layer broke. As a single file accumulates tests at mixed altitudes, that's the signal to split it.
+
+- **Don't write tests with no behavioural payoff.** Skip tests whose machinery costs more than the behaviour they pin — for example, a data-migration test that rewinds the schema, seeds historical rows, re-applies, and asserts, when the migration is a straightforward one-shot backfill. Heavy, bespoke test scaffolding (rewinding migrations, driving framework-internal executors) is a smell: it pins implementation rather than behaviour and breaks on unrelated changes. Spend test effort where behaviour can actually regress.
 
 - Prefer named-variable loops over compact comprehensions in assertions:
 
