@@ -15,6 +15,7 @@ When explaining code, concepts, or systems, use a Socratic approach: ask motivat
 ## Documentation Style
 
 - Lead with the reader-facing capability and domain purpose before naming implementation details. Explain what a component lets people do and why it exists, then describe classes, methods, or data shapes.
+- Use a goal-first explanation structure by default: state the outcome in plain language, explain why the outcome matters, define each technical term before using it, give a simple analogy when the concept is abstract, and only then describe the implementation detail. Prefer “CI should hear Query Guard warnings while tests run. Yugabyte sends those warnings back to the database client. Ruby receives database messages through libpq, the low-level PostgreSQL client library. A notice receiver is a callback in libpq, so attaching one means installing a small listener that can record Query Guard warnings.” over “Attach a libpq notice receiver to the primary connection.”
 - Apply this at every level: headings, paragraphs, numbered steps, and bullets. Do not make only the opening paragraph high-level while later lists fall back to implementation-first wording.
 - For procedural lists, start each item with the user-visible behavior or operational outcome, then add the implementation detail. Prefer "decides whether the job should run now by evaluating the defer rule" over "evaluates the defer rule".
 - When feedback identifies an implementation-first wording pattern, audit the whole artifact for the same pattern instead of fixing only the cited sentence.
@@ -244,6 +245,7 @@ A value object isn't limited to raw fields. It can expose **accessors that re-sh
 
 ## Tests
 
+- **Never run the whole test suite locally.** Run only localized test files related to the changed code. Continuous integration is responsible for full-suite coverage.
 - **Test behaviour, not implementation details.** Assertions should fix on observable outcomes — what a caller sees, what ends up in the database, what the HTTP response contains — not on which internal helpers were invoked or what intermediate variables held. When someone refactors the internals, the test should still pass; when the behaviour breaks, the test should fail.
 
   Concretely: if a process creates a record for each item in a collection, the test iterates the items and asserts each record exists in the database. It does *not* mock the helper that creates a single record and assert it was called N times — that pins the test to today's implementation and gives a green build even if the database ends up empty.
