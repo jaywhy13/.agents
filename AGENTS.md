@@ -116,6 +116,25 @@ When a conditional result depends on a known set of cases, use one explicit bran
 
 Use whatever annotation mechanism the language provides to make types explicit — don't leave them implied just because the code runs without them. Explicit types make contracts readable, catch mistakes earlier, and reduce the need to trace callers to understand what a value holds.
 
+### Don't defeat the type checker with dynamic attribute access
+
+**Never select an attribute or column by a runtime-computed name.** Reaching a field by a runtime-computed name — `getattr(obj, field_name)`, a string-keyed lookup table that maps one value to an attribute or column name, indexing into `obj.__dict__` — is invisible to the type checker. Rename or remove the underlying field and nothing flags the now-broken lookup; it fails silently at runtime instead. The same goes for a `FIELD_MAP = {SOME_ENUM: "some_field"}` dict that exists only to translate a known input into an attribute name: it's an indirection the type checker can't follow, and it's the dynamic cousin of the "clever ordering" anti-pattern — the connection between input and output is indirect, and a new case slots in silently.
+
+Replace it with an explicit, typed method that answers the question directly. If you find yourself doing `getattr(settings, day_field_name)` to ask "is this weekday enabled?", give the object an `is_week_day_enabled(isoweekday: int) -> bool` method (or one explicit branch per known case). Now a rename breaks the method body at type-check time, and the call site reads as the business question rather than a field-name lookup.
+
+```python
+# Dynamic lookup — type checker can't see the field, renames break silently
+FIELD_MAP = {Weekday.MONDAY: "monday_enabled", Weekday.TUESDAY: "tuesday_enabled"}
+if getattr(settings, FIELD_MAP[weekday]):
+    ...
+
+# Explicit typed accessor — rename breaks at type-check time, call site reads as intent
+if settings.is_week_day_enabled(weekday):
+    ...
+```
+
+Put this accessor on the typed value object that owns the data (see "Let value objects carry pure computed accessors"), not on the persistence model.
+
 ## Comments
 
 - Default to no comments. Add one only when the *why* is non-obvious — e.g. "the upstream API returns timestamps as Unix epoch but the display layer expects ISO 8601, so we convert here."
@@ -235,6 +254,8 @@ The first version forces the reader to context-switch between "what are we doing
 
 Splitting a long method into private helpers makes the parent shorter but can leave the pieces just as coupled — each helper still depends on the parent's state and can't be called from anywhere else. That is decomposition in appearance only. Aim for helpers that are **independently reusable**: prefer public methods with explicit parameters over private ones that read shared fields, and keep per-call scratch state (caches, accumulators, running maps) **local to the orchestrating method** rather than threaded through every helper's signature. If a helper only makes sense as step three of one specific parent, it hasn't been decomposed — it's been hidden. A good test: could another caller use this method on its own? If not, rework the seam.
 
+Resist the urge to promote that scratch state into a standing abstraction before there's a demonstrated need. A per-run reuse map belongs as a plain local dictionary in the orchestrating method, not as a dedicated cache class or a stateful helper introduced "in case it's needed later." A speculative caching or stateful layer adds a moving part to the architecture, often carries hidden assumptions (an in-process cache silently doesn't hold across processes or containers), and is the kind of thing that should arrive as a deliberate background-task or shared-cache decision when the need is real — not be smuggled in as an implementation detail of one method. Default to the local value; reach for the abstraction only when a concrete requirement forces it.
+
 ### Split a service the moment it grows a second concept
 
 A service that keeps accreting logic — several private helpers, a chunk of state passed around, a cluster of methods that all serve one sub-task — is usually two services wearing one coat. When a region of a service starts to read like a distinct domain concept (generation, scheduling, pricing, reconciliation), extract it into its own dedicated service with its own dependencies. Don't wait for a hard rule to force the split; actively watch for the crowding and separate concerns early, while the seam is still cheap to cut. The signal is qualitative: "this part is really about a different thing" is enough reason to extract.
@@ -293,6 +314,10 @@ A value object isn't limited to raw fields. It can expose **accessors that re-sh
   ```
 
 - **Write focused tests — one concern per test.** A test that asserts on the return value, the database state, the log output, and the metrics all at once has too many reasons to break and too many places to look when it does. Give each concern its own test. The footprint grows, but each test has a clear purpose, failures point directly at the broken behaviour, and changing one concern doesn't disturb the others.
+
+- **Separate tests by level so the layout signals where a test belongs.** Don't pile high-level tests that exercise the public surface (API/view/end-to-end tests that go through the HTTP layer) into the same file as low-level tests of a single unit (model, serializer, value-object tests). Split them — typically a high-level subpackage (an `api/` or `integration/` folder) alongside unit-level files (`test_models`, `test_serializers`, …). The folder structure then tells a contributor at a glance where a new test goes and what altitude it operates at, and a failure's location hints at which layer broke. As a single file accumulates tests at mixed altitudes, that's the signal to split it.
+
+- **Decide what to test by regression risk, not by how hard it is to test.** Before writing a test, ask whether the behaviour it pins can realistically regress. If it can't — a one-shot, idempotent, already-run-once data backfill that no future code path re-executes — skip it regardless of how easy the test would be. If it can — a lossy or destructive migration, anything a later change could silently break — write it even when the scaffolding is heavy. Never let "this is fiddly to set up" become the reason to skip a test that protects real behaviour, and never add a test whose only justification is that it was cheap to write. The trap is the inverse pairing: skipping the risky-but-awkward test while keeping the safe-but-easy one. Heavy, bespoke scaffolding (rewinding migrations, driving framework-internal executors) is a smell only when the behaviour underneath can't regress — then it's effort pinning implementation, not behaviour.
 
 - Prefer named-variable loops over compact comprehensions in assertions:
 
