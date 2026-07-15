@@ -1,0 +1,3 @@
+interface:
+  display_name: "JM Code Review"
+  short_description: "Review a change for production readiness"
