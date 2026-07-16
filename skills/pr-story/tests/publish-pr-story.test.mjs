@@ -16,17 +16,21 @@ function validStory(overrides = {}) {
     repository: "shop/example",
     number: 42,
     author: "octocat",
-    background: "## Why retries were confusing\n\nThe old path created a second identity.",
-    code_story: "## Carry attempt context\n\n```diff\n-old\n+new\n```\n\n## Answers\n\n1. The identifier stays stable.",
+    background: "## 🌍 Why retries were confusing\n\nThe old path created a second identity.",
+    intuition: "## 🧭 Think of one journey with several attempts\n\nA retry is another attempt within the same journey.",
+    code_story: "## 🪪 Carry attempt context\n\n```diff\n-old\n+new\n```\n\n## ✅ Answers\n\n1. The identifier stays stable.",
     ...overrides,
   };
 }
 
 class FakePullRequestRepository {
-  constructor(records = []) {
+  constructor(records = [], versions = []) {
     this.records = records;
+    this.versions = versions;
     this.creates = [];
     this.updates = [];
+    this.versionCreates = [];
+    this.versionDeletes = [];
   }
 
   async list(number) {
@@ -41,6 +45,23 @@ class FakePullRequestRepository {
   async update(id, fields) {
     this.updates.push({ id, fields });
     return { id, ...fields };
+  }
+
+  async delete() {}
+
+  async listVersions(pullRequestId, createdBy) {
+    return this.versions.filter((version) => version.pull_request_id === pullRequestId && version.created_by === createdBy);
+  }
+
+  async createVersion(fields) {
+    const version = { ...fields, id: `version-${this.versionCreates.length + 1}` };
+    this.versionCreates.push(fields);
+    this.versions.push(version);
+    return { id: version.id };
+  }
+
+  async deleteVersion(id) {
+    this.versionDeletes.push(id);
   }
 }
 
@@ -71,8 +92,20 @@ test("normalizes repository casing from the canonical URL and validates optional
   }));
   assert.equal(story.repository, "shop/example");
   assert.equal(story.watchProvided, true);
+  assert.match(story.intuition, /same journey/);
   assert.equal(story.source_fetched_at, "2026-07-15T14:34:54.985Z");
   assert.equal(story.source_diff_truncated, false);
+});
+
+test("requires intuition as independent Markdown with a heading", () => {
+  assert.throws(
+    () => validateStoryInput(validStory({ intuition: undefined })),
+    (error) => error.issues.some((issue) => issue.field === "intuition" && issue.message === "must be a string"),
+  );
+  assert.throws(
+    () => validateStoryInput(validStory({ intuition: "A retry is another attempt within the same journey." })),
+    (error) => error.issues.some((issue) => issue.field === "intuition" && issue.message.includes("Markdown heading")),
+  );
 });
 
 test("rejects a static image without meaningful alt text", () => {
@@ -82,25 +115,27 @@ test("rejects a static image without meaningful alt text", () => {
   );
 });
 
-test("rejects a static image with an unsafe URL", () => {
+test("rejects an intuition image with an unsafe URL", () => {
   assert.throws(
-    () => validateStoryInput(validStory({ background: "## Flow\n\n![Retry identity flow](javascript:alert(1))" })),
-    (error) => error.issues.some((issue) => issue.message.includes("safe HTTP(S) URL")),
+    () => validateStoryInput(validStory({ intuition: "## Flow\n\n![Retry identity flow](javascript:alert(1))" })),
+    (error) => error.issues.some((issue) => issue.field === "intuition" && issue.message.includes("safe HTTP(S) URL")),
   );
 });
 
-test("rejects raw HTML outside code excerpts", () => {
-  assert.throws(
-    () => validateStoryInput(validStory({ background: "## Flow\n\n<details>hidden</details>" })),
-    (error) => error.issues.some((issue) => issue.message.includes("raw HTML")),
-  );
+test("rejects raw HTML from every teaching field", () => {
+  for (const field of ["background", "intuition", "code_story"]) {
+    assert.throws(
+      () => validateStoryInput(validStory({ [field]: "## Flow\n\n<details>hidden</details>" })),
+      (error) => error.issues.some((issue) => issue.field === field && issue.message.includes("raw HTML")),
+    );
+  }
 });
 
-test("allows accessible HTTP(S) images embedded in Markdown", () => {
+test("allows an accessible HTTP(S) image in intuition", () => {
   const story = validateStoryInput(validStory({
-    background: "## Flow\n\n![A retry keeps the original operation identifier](https://organized.quick.shopify.io/files/retry-flow.png)",
+    intuition: "## Flow\n\n![A retry keeps the original operation identifier](https://organized.quick.shopify.io/files/retry-flow.png)",
   }));
-  assert.match(story.background, /retry-flow\.png/);
+  assert.match(story.intuition, /retry-flow\.png/);
 });
 
 test("rejects repository and number values that disagree with the link", () => {
@@ -143,6 +178,13 @@ test("creates a user-owned record without mutating another owner's matching reco
   assert.equal(repository.creates.length, 1);
   assert.equal(repository.creates[0].created_by, "reader@shopify.com");
   assert.equal(repository.creates[0].watch, false);
+  assert.equal(repository.creates[0].current_version_number, 1);
+  assert.match(repository.creates[0].intuition, /same journey/);
+  assert.match(repository.creates[0].search_text, /same journey/);
+  assert.equal(repository.versionCreates.length, 1);
+  assert.equal(repository.versionCreates[0].version_number, 1);
+  assert.match(repository.versionCreates[0].intuition, /same journey/);
+  assert.equal(repository.versionCreates[0].created_from, "agent_publish");
 });
 
 test("refresh preserves omitted watch, creation fields, and optional source metadata", async () => {
@@ -173,7 +215,12 @@ test("refresh preserves omitted watch, creation fields, and optional source meta
   assert.equal(fields.updated_at, "2026-07-16T12:00:00.000Z");
   assert.equal(fields.source_fetched_at, "2026-07-02T00:00:00.000Z");
   assert.equal(fields.source_diff_truncated, true);
-  assert.match(fields.search_text, /make retries visible/);
+  assert.equal(fields.current_version_number, 2);
+  assert.match(fields.intuition, /same journey/);
+  assert.match(fields.search_text, /same journey/);
+  assert.equal(repository.versionCreates.length, 2);
+  assert.equal(repository.versionCreates[0].created_from, "legacy_migration");
+  assert.equal(repository.versionCreates[1].version_number, 2);
 });
 
 test("dry run predicts the action without creating or updating", async () => {
@@ -186,6 +233,73 @@ test("dry run predicts the action without creating or updating", async () => {
   assert.equal(published.fields.watch, true);
   assert.equal(repository.creates.length, 0);
   assert.equal(repository.updates.length, 0);
+  assert.equal(repository.versionCreates.length, 0);
+});
+
+test("identical content and watch do not create another version", async () => {
+  const story = validStory();
+  const existing = {
+    id: "owned-record",
+    ...story,
+    created_by: "reader@shopify.com",
+    watch: false,
+    current_version_number: 1,
+    ts: 100,
+    created_at: "2026-07-01T00:00:00.000Z",
+    updated_at: "2026-07-01T00:00:00.000Z",
+    watch_updated_at: "2026-07-01T00:00:00.000Z",
+  };
+  const repository = new FakePullRequestRepository([existing], [{
+    id: "version-1",
+    pull_request_id: existing.id,
+    version_number: 1,
+    ...story,
+    created_by: "reader@shopify.com",
+  }]);
+  const publisher = new PullRequestStoryPublisher(repository, { now: fixedNow });
+
+  const published = await publisher.publish(story, "reader@shopify.com");
+
+  assert.equal(published.action, "no_change");
+  assert.equal(published.version_created, false);
+  assert.equal(repository.updates.length, 0);
+  assert.equal(repository.versionCreates.length, 0);
+});
+
+test("changing intuition creates a new owner-scoped version and projection", async () => {
+  const story = validStory();
+  const existing = {
+    id: "owned-record",
+    ...story,
+    created_by: "reader@shopify.com",
+    watch: false,
+    current_version_number: 1,
+    ts: 100,
+    created_at: "2026-07-01T00:00:00.000Z",
+    updated_at: "2026-07-01T00:00:00.000Z",
+    watch_updated_at: "2026-07-01T00:00:00.000Z",
+  };
+  const repository = new FakePullRequestRepository([existing], [{
+    id: "version-1",
+    pull_request_id: existing.id,
+    version_number: 1,
+    ...story,
+    created_by: "reader@shopify.com",
+  }]);
+  const publisher = new PullRequestStoryPublisher(repository, { now: fixedNow });
+  const changedIntuition = "## 🧭 Think of one journey with a route planner\n\nEach retry follows the same trip identifier.";
+
+  const published = await publisher.publish(
+    validStory({ intuition: changedIntuition }),
+    "reader@shopify.com",
+  );
+
+  assert.equal(published.action, "update");
+  assert.equal(published.version_created, true);
+  assert.equal(repository.updates[0].id, "owned-record");
+  assert.equal(repository.updates[0].fields.intuition, changedIntuition);
+  assert.equal(repository.versionCreates[0].intuition, changedIntuition);
+  assert.equal(repository.versionCreates[0].created_by, "reader@shopify.com");
 });
 
 test("refuses to choose among duplicate records owned by the authenticated user", async () => {

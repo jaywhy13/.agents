@@ -15,6 +15,7 @@ const INPUT_FIELDS = new Set([
   "number",
   "author",
   "background",
+  "intuition",
   "code_story",
   "watch",
   "source_fetched_at",
@@ -175,6 +176,7 @@ export function validateStoryInput(input) {
   const repository = requiredString(input, "repository", issues, { singleLine: true });
   const author = requiredString(input, "author", issues, { singleLine: true });
   const background = requiredString(input, "background", issues);
+  const intuition = requiredString(input, "intuition", issues);
   const codeStory = requiredString(input, "code_story", issues);
 
   let reference;
@@ -206,6 +208,7 @@ export function validateStoryInput(input) {
   const sourceFetchedAt = optionalIsoTimestamp(input, "source_fetched_at", issues);
 
   validateMarkdown(background, "background", issues);
+  validateMarkdown(intuition, "intuition", issues);
   validateMarkdown(codeStory, "code_story", issues, { requireDiff: true });
 
   if (issues.length) {
@@ -220,6 +223,7 @@ export function validateStoryInput(input) {
     number: reference.number,
     author,
     background,
+    intuition,
     code_story: codeStory,
     watchProvided,
     ...(watchProvided ? { watch: input.watch } : {}),
@@ -228,6 +232,36 @@ export function validateStoryInput(input) {
       ? { source_diff_truncated: input.source_diff_truncated }
       : {}),
   };
+}
+
+const VERSIONED_FIELDS = [
+  "title",
+  "summary",
+  "author",
+  "background",
+  "intuition",
+  "code_story",
+  "source_fetched_at",
+  "source_diff_truncated",
+];
+
+function versionContent(fields) {
+  return {
+    title: String(fields?.title || "").trim(),
+    summary: String(fields?.summary || "").trim(),
+    author: String(fields?.author || "").trim(),
+    background: String(fields?.background || "").trim(),
+    intuition: String(fields?.intuition || "").trim(),
+    code_story: String(fields?.code_story || "").trim(),
+    source_fetched_at: fields?.source_fetched_at ? String(fields.source_fetched_at) : null,
+    source_diff_truncated: fields?.source_diff_truncated === true,
+  };
+}
+
+function versionContentChanged(previousFields, nextFields) {
+  const previous = versionContent(previousFields);
+  const next = versionContent(nextFields);
+  return VERSIONED_FIELDS.some((field) => previous[field] !== next[field]);
 }
 
 export function buildSearchText(pullRequest) {
@@ -239,6 +273,7 @@ export function buildSearchText(pullRequest) {
     pullRequest.number,
     pullRequest.author,
     pullRequest.background,
+    pullRequest.intuition,
     pullRequest.code_story,
   ].join(" ").toLowerCase();
 }
@@ -264,8 +299,9 @@ function resolveQuickSdk() {
 }
 
 export class QuickPullRequestRepository {
-  constructor(collection) {
+  constructor(collection, versionCollection) {
     this.collection = collection;
+    this.versionCollection = versionCollection;
   }
 
   async list(number) {
@@ -281,6 +317,29 @@ export class QuickPullRequestRepository {
 
   update(id, fields) {
     return this.collection.update(id, fields);
+  }
+
+  delete(id) {
+    return this.collection.delete(id);
+  }
+
+  async listVersions(pullRequestId, createdBy) {
+    const response = await this.versionCollection
+      .where({ pull_request_id: pullRequestId, created_by: createdBy })
+      .orderBy("version_number", "asc")
+      .limit(500)
+      .find();
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.data)) return response.data;
+    throw new PublisherError("database_response_invalid", "Quick returned an unreadable pull_request_versions query response.");
+  }
+
+  createVersion(fields) {
+    return this.versionCollection.create(fields);
+  }
+
+  deleteVersion(id) {
+    return this.versionCollection.delete(id);
   }
 }
 
@@ -317,54 +376,129 @@ export class PullRequestStoryPublisher {
     if (existing && typeof existing.id !== "string") {
       throw new PublisherError("database_response_invalid", "The matching Quick record has no string identifier.");
     }
-    if (existing && !sameOwner(existing, createdBy)) {
-      throw new PublisherError("ownership_mismatch", "Refusing to update a pull request story owned by another user.");
-    }
 
     const now = this.now();
     const timestamp = now.valueOf();
     const isoTimestamp = now.toISOString();
     const watch = story.watchProvided ? story.watch : (existing?.watch ?? false);
     const watchChanged = !existing || existing.watch !== watch;
+    const content = versionContent({
+      ...story,
+      source_fetched_at: story.source_fetched_at || existing?.source_fetched_at || null,
+      source_diff_truncated: Object.hasOwn(story, "source_diff_truncated")
+        ? story.source_diff_truncated
+        : existing?.source_diff_truncated === true,
+    });
+
+    if (!existing) {
+      const fields = {
+        link: story.link,
+        repository: story.repository,
+        number: story.number,
+        ...content,
+        watch,
+        current_version_number: 1,
+        created_by: createdBy,
+        ts: timestamp,
+        created_at: isoTimestamp,
+        updated_at: isoTimestamp,
+        watch_updated_at: isoTimestamp,
+      };
+      fields.search_text = buildSearchText(fields);
+      if (dryRun) return { action: "create", id: null, fields, version_number: 1, version_created: true };
+
+      const created = await this.repository.create(fields);
+      const id = createdRecordId(created);
+      if (typeof id !== "string" || !id) {
+        throw new PublisherError("database_response_invalid", "Quick created the record but returned no string identifier.");
+      }
+      const versionFields = {
+        pull_request_id: id,
+        version_number: 1,
+        ...content,
+        created_by: createdBy,
+        created_from: "agent_publish",
+        ts: timestamp,
+        created_at: isoTimestamp,
+      };
+      try {
+        const createdVersion = await this.repository.createVersion(versionFields);
+        if (!createdRecordId(createdVersion)) throw new Error("Quick returned no version identifier.");
+      } catch (error) {
+        await this.repository.delete(id);
+        throw new PublisherError("version_create_failed", `The parent was rolled back because version 1 could not be created: ${error.message}`);
+      }
+      return { action: "create", id, fields, version_number: 1, version_created: true };
+    }
+
+    let versions = await this.repository.listVersions(existing.id, createdBy);
+    let migratedLegacyVersion = false;
+    if (!versions.length) {
+      const legacyFields = {
+        pull_request_id: existing.id,
+        version_number: 1,
+        ...versionContent(existing),
+        created_by: createdBy,
+        created_from: "legacy_migration",
+        ts: existing.ts || Date.parse(existing.created_at) || timestamp,
+        created_at: existing.created_at || isoTimestamp,
+      };
+      if (!dryRun) {
+        const createdLegacyVersion = await this.repository.createVersion(legacyFields);
+        const legacyId = createdRecordId(createdLegacyVersion);
+        if (!legacyId) throw new PublisherError("version_create_failed", "Quick created legacy version 1 but returned no identifier.");
+        versions = [{ ...legacyFields, id: legacyId }];
+      } else {
+        versions = [{ ...legacyFields, id: "[legacy-version-1]" }];
+      }
+      migratedLegacyVersion = true;
+    }
+
+    const currentVersionNumber = Math.max(...versions.map((version) => Number(version.version_number) || 1));
+    const contentChanged = versionContentChanged(existing, content);
+    const nextVersionNumber = contentChanged ? currentVersionNumber + 1 : currentVersionNumber;
     const fields = {
-      title: story.title,
-      summary: story.summary,
-      link: story.link,
-      repository: story.repository,
-      number: story.number,
-      author: story.author,
-      background: story.background,
-      code_story: story.code_story,
+      link: existing.link,
+      repository: existing.repository,
+      number: existing.number,
+      ...content,
       watch,
+      current_version_number: nextVersionNumber,
       created_by: createdBy,
-      ts: existing?.ts ?? timestamp,
-      created_at: existing?.created_at || isoTimestamp,
-      updated_at: isoTimestamp,
+      ts: existing.ts,
+      created_at: existing.created_at,
+      updated_at: contentChanged || watchChanged ? isoTimestamp : existing.updated_at,
       watch_updated_at: watchChanged ? isoTimestamp : (existing.watch_updated_at || isoTimestamp),
-      ...(story.source_fetched_at
-        ? { source_fetched_at: story.source_fetched_at }
-        : (existing?.source_fetched_at ? { source_fetched_at: existing.source_fetched_at } : {})),
-      ...(Object.hasOwn(story, "source_diff_truncated")
-        ? { source_diff_truncated: story.source_diff_truncated }
-        : (typeof existing?.source_diff_truncated === "boolean"
-          ? { source_diff_truncated: existing.source_diff_truncated }
-          : {})),
     };
     fields.search_text = buildSearchText(fields);
+    const action = contentChanged || watchChanged || migratedLegacyVersion ? "update" : "no_change";
+    if (dryRun) return { action, id: existing.id, fields, version_number: nextVersionNumber, version_created: contentChanged };
 
-    const action = existing ? "update" : "create";
-    if (dryRun) return { action, id: existing?.id, fields };
+    let createdVersionId = null;
+    if (contentChanged) {
+      const versionFields = {
+        pull_request_id: existing.id,
+        version_number: nextVersionNumber,
+        ...content,
+        created_by: createdBy,
+        created_from: "agent_publish",
+        ts: timestamp,
+        created_at: isoTimestamp,
+      };
+      const createdVersion = await this.repository.createVersion(versionFields);
+      createdVersionId = createdRecordId(createdVersion);
+      if (!createdVersionId) throw new PublisherError("version_create_failed", `Quick created version ${nextVersionNumber} but returned no identifier.`);
+    }
 
-    if (existing) {
-      await this.repository.update(existing.id, fields);
-      return { action, id: existing.id, fields };
+    if (action !== "no_change") {
+      try {
+        await this.repository.update(existing.id, fields);
+      } catch (error) {
+        if (createdVersionId) await this.repository.deleteVersion(createdVersionId);
+        throw error;
+      }
     }
-    const created = await this.repository.create(fields);
-    const id = createdRecordId(created);
-    if (typeof id !== "string" || !id) {
-      throw new PublisherError("database_response_invalid", "Quick created the record but returned no string identifier.");
-    }
-    return { action, id, fields };
+    return { action, id: existing.id, fields, version_number: nextVersionNumber, version_created: contentChanged };
   }
 }
 
@@ -403,7 +537,10 @@ export async function run(argumentsList = process.argv.slice(2)) {
 
   validateStoryInput(input);
   const { client, createdBy } = await authenticatedQuickClient();
-  const repository = new QuickPullRequestRepository(client.db.collection(COLLECTION));
+  const repository = new QuickPullRequestRepository(
+    client.db.collection(COLLECTION),
+    client.db.collection("pull_request_versions"),
+  );
   const publisher = new PullRequestStoryPublisher(repository);
   const published = await publisher.publish(input, createdBy, { dryRun });
   const detailUrl = published.id
@@ -417,6 +554,8 @@ export async function run(argumentsList = process.argv.slice(2)) {
     site: SITE,
     collection: COLLECTION,
     url: detailUrl,
+    version_number: published.version_number,
+    version_created: published.version_created,
     pull_request: {
       repository: published.fields.repository,
       number: published.fields.number,
