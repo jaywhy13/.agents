@@ -18,7 +18,8 @@ function validStory(overrides = {}) {
     author: "octocat",
     background: "## 🌍 Why retries were confusing\n\nThe old path created a second identity.",
     intuition: "## 🧭 Think of one journey with several attempts\n\nA retry is another attempt within the same journey.",
-    code_story: "## 🪪 Carry attempt context\n\n```diff\n-old\n+new\n```\n\n## ✅ Answers\n\n1. The identifier stays stable.",
+    code_story: "## 🪪 Carry attempt context\n\nThe implementation keeps every attempt tied to one operation.",
+    code_samples: "## 🧪 Use the retry context\n\n`retry.js` · `createRetry`\n\n```diff\n-old\n+new\n```\n\n## 🧠 Check your understanding\n\n1. What stays stable?\n\n## ✅ Answers\n\n1. The identifier stays stable.",
     ...overrides,
   };
 }
@@ -93,6 +94,7 @@ test("normalizes repository casing from the canonical URL and validates optional
   assert.equal(story.repository, "shop/example");
   assert.equal(story.watchProvided, true);
   assert.match(story.intuition, /same journey/);
+  assert.match(story.code_samples, /Use the retry context/);
   assert.equal(story.source_fetched_at, "2026-07-15T14:34:54.985Z");
   assert.equal(story.source_diff_truncated, false);
 });
@@ -105,6 +107,21 @@ test("requires intuition as independent Markdown with a heading", () => {
   assert.throws(
     () => validateStoryInput(validStory({ intuition: "A retry is another attempt within the same journey." })),
     (error) => error.issues.some((issue) => issue.field === "intuition" && issue.message.includes("Markdown heading")),
+  );
+});
+
+test("requires code samples as Markdown with a heading and fenced diff excerpt", () => {
+  assert.throws(
+    () => validateStoryInput(validStory({ code_samples: undefined })),
+    (error) => error.issues.some((issue) => issue.field === "code_samples" && issue.message === "must be a string"),
+  );
+  assert.throws(
+    () => validateStoryInput(validStory({ code_samples: "```diff\n-old\n+new\n```" })),
+    (error) => error.issues.some((issue) => issue.field === "code_samples" && issue.message.includes("Markdown heading")),
+  );
+  assert.throws(
+    () => validateStoryInput(validStory({ code_samples: "## Use the component\n\nNo source excerpt." })),
+    (error) => error.issues.some((issue) => issue.field === "code_samples" && issue.message.includes("fenced diff excerpt")),
   );
 });
 
@@ -123,7 +140,7 @@ test("rejects an intuition image with an unsafe URL", () => {
 });
 
 test("rejects raw HTML from every teaching field", () => {
-  for (const field of ["background", "intuition", "code_story"]) {
+  for (const field of ["background", "intuition", "code_story", "code_samples"]) {
     assert.throws(
       () => validateStoryInput(validStory({ [field]: "## Flow\n\n<details>hidden</details>" })),
       (error) => error.issues.some((issue) => issue.field === field && issue.message.includes("raw HTML")),
@@ -180,10 +197,13 @@ test("creates a user-owned record without mutating another owner's matching reco
   assert.equal(repository.creates[0].watch, false);
   assert.equal(repository.creates[0].current_version_number, 1);
   assert.match(repository.creates[0].intuition, /same journey/);
+  assert.match(repository.creates[0].code_samples, /Use the retry context/);
   assert.match(repository.creates[0].search_text, /same journey/);
+  assert.match(repository.creates[0].search_text, /use the retry context/);
   assert.equal(repository.versionCreates.length, 1);
   assert.equal(repository.versionCreates[0].version_number, 1);
   assert.match(repository.versionCreates[0].intuition, /same journey/);
+  assert.match(repository.versionCreates[0].code_samples, /Use the retry context/);
   assert.equal(repository.versionCreates[0].created_from, "agent_publish");
 });
 
@@ -220,7 +240,9 @@ test("refresh preserves omitted watch, creation fields, and optional source meta
   assert.match(fields.search_text, /same journey/);
   assert.equal(repository.versionCreates.length, 2);
   assert.equal(repository.versionCreates[0].created_from, "legacy_migration");
+  assert.equal(repository.versionCreates[0].code_samples, "");
   assert.equal(repository.versionCreates[1].version_number, 2);
+  assert.match(repository.versionCreates[1].code_samples, /Use the retry context/);
 });
 
 test("dry run predicts the action without creating or updating", async () => {
@@ -266,7 +288,7 @@ test("identical content and watch do not create another version", async () => {
   assert.equal(repository.versionCreates.length, 0);
 });
 
-test("changing intuition creates a new owner-scoped version and projection", async () => {
+test("changing code samples creates a new owner-scoped version and projection", async () => {
   const story = validStory();
   const existing = {
     id: "owned-record",
@@ -287,18 +309,18 @@ test("changing intuition creates a new owner-scoped version and projection", asy
     created_by: "reader@shopify.com",
   }]);
   const publisher = new PullRequestStoryPublisher(repository, { now: fixedNow });
-  const changedIntuition = "## 🧭 Think of one journey with a route planner\n\nEach retry follows the same trip identifier.";
+  const changedCodeSamples = "## 🧪 Call the retry service\n\n`retry.js` · `retryService.call`\n\n```diff\n-old\n+new\n```\n\n## 🧠 Check your understanding\n\n1. What calls the service?\n\n## ✅ Answers\n\n1. The retry coordinator.";
 
   const published = await publisher.publish(
-    validStory({ intuition: changedIntuition }),
+    validStory({ code_samples: changedCodeSamples }),
     "reader@shopify.com",
   );
 
   assert.equal(published.action, "update");
   assert.equal(published.version_created, true);
   assert.equal(repository.updates[0].id, "owned-record");
-  assert.equal(repository.updates[0].fields.intuition, changedIntuition);
-  assert.equal(repository.versionCreates[0].intuition, changedIntuition);
+  assert.equal(repository.updates[0].fields.code_samples, changedCodeSamples);
+  assert.equal(repository.versionCreates[0].code_samples, changedCodeSamples);
   assert.equal(repository.versionCreates[0].created_by, "reader@shopify.com");
 });
 

@@ -17,6 +17,7 @@ const INPUT_FIELDS = new Set([
   "background",
   "intuition",
   "code_story",
+  "code_samples",
   "watch",
   "source_fetched_at",
   "source_diff_truncated",
@@ -178,6 +179,7 @@ export function validateStoryInput(input) {
   const background = requiredString(input, "background", issues);
   const intuition = requiredString(input, "intuition", issues);
   const codeStory = requiredString(input, "code_story", issues);
+  const codeSamples = requiredString(input, "code_samples", issues);
 
   let reference;
   try {
@@ -209,7 +211,8 @@ export function validateStoryInput(input) {
 
   validateMarkdown(background, "background", issues);
   validateMarkdown(intuition, "intuition", issues);
-  validateMarkdown(codeStory, "code_story", issues, { requireDiff: true });
+  validateMarkdown(codeStory, "code_story", issues);
+  validateMarkdown(codeSamples, "code_samples", issues, { requireDiff: true });
 
   if (issues.length) {
     throw new PublisherError("validation_failed", "The pull request story is invalid.", issues);
@@ -225,6 +228,7 @@ export function validateStoryInput(input) {
     background,
     intuition,
     code_story: codeStory,
+    code_samples: codeSamples,
     watchProvided,
     ...(watchProvided ? { watch: input.watch } : {}),
     ...(sourceFetchedAt ? { source_fetched_at: sourceFetchedAt } : {}),
@@ -241,6 +245,7 @@ const VERSIONED_FIELDS = [
   "background",
   "intuition",
   "code_story",
+  "code_samples",
   "source_fetched_at",
   "source_diff_truncated",
 ];
@@ -253,6 +258,7 @@ function versionContent(fields) {
     background: String(fields?.background || "").trim(),
     intuition: String(fields?.intuition || "").trim(),
     code_story: String(fields?.code_story || "").trim(),
+    code_samples: String(fields?.code_samples || "").trim(),
     source_fetched_at: fields?.source_fetched_at ? String(fields.source_fetched_at) : null,
     source_diff_truncated: fields?.source_diff_truncated === true,
   };
@@ -275,6 +281,7 @@ export function buildSearchText(pullRequest) {
     pullRequest.background,
     pullRequest.intuition,
     pullRequest.code_story,
+    pullRequest.code_samples,
   ].join(" ").toLowerCase();
 }
 
