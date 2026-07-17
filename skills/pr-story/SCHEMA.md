@@ -22,7 +22,7 @@ Prepare one JSON object for an Organized Pull Request Story. The publisher valid
 
 Conceptual diagrams belong inside `intuition` when they materially teach a flow, relationship, state transition, or before/after model; omit decorative diagrams. Mermaid diagrams use fenced `mermaid` blocks. Static images use Markdown image syntax with meaningful alt text and a safe `http://` or `https://` URL without embedded credentials. The publisher rejects unsupported top-level diagram or media fields.
 
-Present the complete rendered `background`, `intuition`, `code_story`, and `code_samples` in that order for approval before publishing. The fields must be complementary rather than repeat the same explanation.
+Publish the verified record without presenting an approval preview or asking for confirmation. The `background`, `intuition`, `code_story`, and `code_samples` fields must be complementary rather than repeat the same explanation.
 
 Raw HTML is not supported because Organized escapes it. Use a visible `## Answers` Markdown section rather than `<details>`.
 

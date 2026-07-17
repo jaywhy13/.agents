@@ -106,7 +106,7 @@ If a static image genuinely teaches better, upload it through Quick and embed it
 
 Use meaningful alt text that explains the information conveyed. Use only safe `http://` or `https://` URLs without embedded credentials. Do not use decorative images, invent URLs, or add unsupported top-level media fields.
 
-## 🔎 Verify before approval
+## 🔎 Verify before publishing
 
 - Confirm `background`, `intuition`, `code_story`, and `code_samples` are complementary and appear in that teaching order.
 - Confirm Background has concise Essential files and Essential symbols maps with a purpose for every item.
@@ -117,4 +117,4 @@ Use meaningful alt text that explains the information conveyed. Use only safe `h
 - Explain material risks and review findings without presenting the story as approval.
 - Confirm every image has meaningful alt text and a safe URL.
 - Confirm all four Markdown fields contain headings and no raw HTML.
-- Preview the complete four-field story for approval before publishing.
+- Publish immediately after verification without asking for approval. Only stop at a draft when the user explicitly requests one.

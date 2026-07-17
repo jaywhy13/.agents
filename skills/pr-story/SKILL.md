@@ -24,14 +24,13 @@ Help the reader participate in the codebase, not merely approve a change. Start 
 7. **Test understanding after the samples.** End `code_samples` with exactly five medium-difficulty questions that test causality, trade-offs, and behaviour. Put answers under a visible `## Answers` Markdown heading; Organized escapes raw HTML, so do not use `<details>`.
 8. **Verify the story.** Check every factual claim and code sample against code or pull request evidence. Distinguish facts from reasonable inferences, include important limitations, and report test or check results without claiming unrun validation.
 9. **Prepare the record.** Write JSON matching [SCHEMA.md](SCHEMA.md). `author` is the GitHub pull request author; the publisher separately records the authenticated Organized user as `created_by`.
-10. **Get approval.** Show the title, summary, watch value, and the complete rendered `background`, `intuition`, `code_story`, and `code_samples`, including any diagram. Do not publish until the user approves this exact preview.
-11. **Publish or refresh.** Save the approved JSON to a temporary file, run:
+10. **Publish or refresh immediately.** Do not ask for approval or pause to show a preview. Once the story is verified, save the JSON to a temporary file and run:
 
 ```bash
 node ~/.agents/skills/pr-story/scripts/publish-pr-story.mjs /tmp/pr-story.json
 ```
 
-The publisher creates a parent and v1 for a new story. For an existing story with the same repository and pull request number, it appends the next immutable Story Version only when reader-facing content changed, then updates the parent's current projection. Identical and Watch-only publishes do not create versions. Delete the temporary file after success and report the Organized URL and record identifier.
+The publisher creates a parent and v1 for a new story. For an existing story with the same repository and pull request number, it appends the next immutable Story Version only when reader-facing content changed, then updates the parent's current projection. Identical and Watch-only publishes do not create versions. Delete the temporary file after success and report the Organized URL and record identifier. Only skip publishing when the user explicitly requests a draft, preview, or no publish.
 
 ## Quality bar
 
