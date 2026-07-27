@@ -1,12 +1,12 @@
 ---
 name: organized-post
 description: >
-  Publish a post to Organized, Shopify's internal personal feed at organized.quick.shopify.io, using the Quick Node SDK (cached IAP auth — no browser sign-in needed). Use when publishing any post to the Organized `posts` collection, when invoked via /organized-post, or as the publishing step under the hood of the today-i-learned and thinking-out-loud skills.
+  Publishes an approved post to Organized, Shopify's internal personal feed at organized.quick.shopify.io. Use when invoked via /organized-post, when directly publishing to the Organized `posts` collection, or when an `organized-*` wrapper needs to send a formatted artifact.
 ---
 
 # Organized Post
 
-Publishes a formatted post to Organized's `posts` collection. This is the **shared publishing primitive** — other skills (today-i-learned, thinking-out-loud) format the content, then call this skill to ship it.
+Publishes a formatted post to Organized's `posts` collection. This is the **shared publishing primitive**: `organized-*` wrapper skills send approved artifacts here, while core formatting skills only create those artifacts.
 
 ## Why this exists
 

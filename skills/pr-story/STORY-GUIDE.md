@@ -92,21 +92,21 @@ End `code_samples` with exactly five medium-difficulty questions about causality
 5. ...
 ```
 
-Organized escapes raw HTML, so do not wrap answers in `<details>` or other HTML.
+Raw HTML is not part of the artifact contract, so do not wrap answers in `<details>` or other HTML.
 
 ## 🖼️ Use diagrams and images safely
 
 Prefer Mermaid in a fenced `mermaid` block because it remains editable and accessible beside the text. Put a conceptual teaching diagram in `intuition`. Use a later diagram only when it explains implementation evidence that the intuition diagram cannot cover.
 
-If a static image genuinely teaches better, upload it through Quick and embed it with Markdown:
+If a stable static image genuinely teaches better, embed it with Markdown:
 
 ```markdown
-![Requests retain one operation identifier across retry attempts](https://organized.quick.shopify.io/files/retry-flow.png)
+![Requests retain one operation identifier across retry attempts](https://example.com/retry-flow.png)
 ```
 
 Use meaningful alt text that explains the information conveyed. Use only safe `http://` or `https://` URLs without embedded credentials. Do not use decorative images, invent URLs, or add unsupported top-level media fields.
 
-## 🔎 Verify before publishing
+## 🔎 Verify before returning the artifact
 
 - Confirm `background`, `intuition`, `code_story`, and `code_samples` are complementary and appear in that teaching order.
 - Confirm Background has concise Essential files and Essential symbols maps with a purpose for every item.
@@ -117,4 +117,4 @@ Use meaningful alt text that explains the information conveyed. Use only safe `h
 - Explain material risks and review findings without presenting the story as approval.
 - Confirm every image has meaningful alt text and a safe URL.
 - Confirm all four Markdown fields contain headings and no raw HTML.
-- Publish immediately after verification without asking for approval. Only stop at a draft when the user explicitly requests one.
+- Write the verified JSON artifact to the requested path or a safe temporary path, then return both the object and its path.

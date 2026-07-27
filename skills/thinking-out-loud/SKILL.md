@@ -1,29 +1,43 @@
 ---
 name: thinking-out-loud
-description: >
-  Turns the user's rough exploratory thoughts into a legible, emoji-enhanced Organized post. Use when the user invokes /thinking-out-loud, says "thinking out loud", or asks to publish a thought/reflection to Organized.
+description: Transforms rough exploratory thoughts into polished reusable fields while preserving uncertainty and voice. Use when the user invokes /thinking-out-loud, says "thinking out loud," or wants raw reflections structured without sending them anywhere.
 ---
 
 # Thinking Out Loud
 
-Publish a polished reflection to Organized, Shopify's internal personal feed at `organized.quick.shopify.io`.
+Turn rough thoughts into a clear, reusable draft. Return only `title`, `summary`, `body`, and `tags`; do not take any external action.
 
 ## Inputs
 
-- Require the user's raw thought text. If missing, ask for it.
-- Preserve the user's uncertainty, nuance, and first-person voice. Improve structure and readability; do not over-resolve an open thought.
-- If the text is sensitive, names people, or could be read as a firm decision, ask before publishing.
+- Require the user's raw thought text. If it is missing, ask for it.
+- Treat the source as authoritative. Do not add evidence, conclusions, confidence, or intent that the user did not express.
+- Preserve uncertainty, nuance, exploratory framing, and first-person voice. Improve structure and readability without over-resolving an open thought.
+- If the source names people, contains sensitive details, or could make exploration sound like a firm decision, flag the risk and ask how to handle it before finalizing. Do not silently erase nuance or identifying details.
 
-## Format the post
+## Output fields
 
-Create these fields:
+- `title`: a short headline that frames the thought as exploration rather than certainty.
+- `summary`: one sentence stating the tension, question, or idea without implying a resolution.
+- `body`: polished Markdown in the user's voice, with sparse, helpful emoji.
+- `tags`: `thoughts` first, followed by 1-5 relevant lowercase slug tags inferred from the source.
 
-- `title`: short headline that frames the thought as exploration, not certainty.
-- `summary`: one-sentence statement of the tension, question, or idea.
-- `body`: Markdown with sparse helpful emoji.
-- `tags`: include `thoughts` exactly, then add 1-5 relevant lowercase slug tags inferred from the text.
+Return the exact fields in this shape:
 
-Suggested Markdown shape:
+```yaml
+title: "..."
+summary: "..."
+body: |-
+  ## 💭 The thought
+
+  ...
+tags:
+  - thoughts
+  - topic-a
+```
+
+## Body guidance
+
+Use only the sections that fit the source:
 
 ```md
 ## 💭 The thought
@@ -32,67 +46,15 @@ Suggested Markdown shape:
 
 ## 🧭 Why I’m circling it
 
-[Context, motivation, or trade-off from the user's note.]
+[Context, motivation, or trade-off from the user's notes.]
 
 ## 🧪 What I’m wondering
 
-[Open questions or next angles, only if present or strongly implied.]
+[Open questions or next angles, only when present or strongly implied.]
 ```
 
-Use only sections that fit the source text. Keep it readable, honest, and exploratory.
-
-## Confirm before publishing
-
-Show the exact `title`, `summary`, `body`, and `tags`. Ask for approval before posting unless the user explicitly says to post without review.
-
-## Publish to Organized
-
-Organized stores posts in the `posts` collection of the site's Quick database. Quick is Shopify's internal hosting platform; its browser API is exposed as the `quick` global on pages served by Organized.
-
-Open `https://organized.quick.shopify.io/`, then run this in the page context with the approved fields:
-
-```js
-async function publishThinkingOutLoudPost({ title, summary, body, tags }) {
-  if (!window.quick?.db || !window.quick?.id?.email) {
-    throw new Error("Open https://organized.quick.shopify.io/ and sign in before publishing.");
-  }
-
-  const now = Date.now();
-  const normalizedTags = Array.from(new Set(
-    ["thoughts", ...tags]
-      .map((tag) => tag.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-"))
-      .map((tag) => tag.replace(/^-+|-+$/g, ""))
-      .filter(Boolean)
-  ));
-
-  const post = {
-    title,
-    summary,
-    body,
-    author: quick.id.email,
-    tags: normalizedTags,
-    images: [],
-    audio: null,
-    ts: now,
-    created_at: new Date(now).toISOString(),
-    likes: 0,
-    starred: false,
-    archived: false,
-  };
-
-  post.search_text = [title, summary, body, normalizedTags.join(" ")]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  return quick.db.collection("posts").create(post);
-}
-```
-
-After publishing, report the created post id if available and link to `https://organized.quick.shopify.io/`.
+Keep emoji sparse: at most one purposeful emoji in a heading and none added merely as decoration. Keep the result honest, readable, and exploratory.
 
 ## Tag guidance
 
-Good extra tags are domain nouns from the thought: `strategy`, `product`, `architecture`, `teamwork`, `leadership`, `writing`, `learning`, `workflow`, `ai`, `systems`, `communication`, `shopify`.
-
-Do not add joke tags or overly broad tags unless the text supports them.
+Choose topic nouns supported by the source, such as `strategy`, `product`, `architecture`, `teamwork`, `leadership`, `writing`, `learning`, `workflow`, `ai`, `systems`, `communication`, or `shopify`. Lowercase and hyphenate multiword tags. Deduplicate tags. Do not add joke tags or unsupported broad tags.
