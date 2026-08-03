@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { resolveQuickSoftwareDevelopmentKitPath } from "../../quick-runtime/resolve-quick-software-development-kit.mjs";
 
 const SITE = "organized";
 const COLLECTION = "pull_requests";
@@ -285,26 +285,6 @@ export function buildSearchText(pullRequest) {
   ].join(" ").toLowerCase();
 }
 
-function resolveQuickSdk() {
-  if (process.env.QUICK_SDK_PATH && existsSync(process.env.QUICK_SDK_PATH)) {
-    return process.env.QUICK_SDK_PATH;
-  }
-  let quickBinary;
-  try {
-    quickBinary = execFileSync("/bin/bash", ["-lc", "command -v quick"], { encoding: "utf8" }).trim();
-  } catch {
-    throw new PublisherError("quick_unavailable", "`quick` was not found on PATH. Install it, then run `quick auth login`.");
-  }
-  const realQuickBinary = execFileSync("readlink", ["-f", quickBinary], { encoding: "utf8" }).trim();
-  let directory = dirname(realQuickBinary);
-  for (let level = 0; level < 6; level += 1) {
-    const candidate = join(directory, "dist", "sdk.mjs");
-    if (existsSync(candidate)) return candidate;
-    directory = dirname(directory);
-  }
-  throw new PublisherError("quick_sdk_unavailable", "Could not locate dist/sdk.mjs near the installed `quick` command.");
-}
-
 export class QuickPullRequestRepository {
   constructor(collection, versionCollection) {
     this.collection = collection;
@@ -522,8 +502,13 @@ function parseArguments(argumentsList) {
 }
 
 async function authenticatedQuickClient() {
-  const sdkPath = resolveQuickSdk();
-  const { createClient } = await import(sdkPath);
+  let softwareDevelopmentKitPath;
+  try {
+    softwareDevelopmentKitPath = resolveQuickSoftwareDevelopmentKitPath();
+  } catch (error) {
+    throw new PublisherError("quick_unavailable", error.message);
+  }
+  const { createClient } = await import(pathToFileURL(softwareDevelopmentKitPath).href);
   const client = createClient(SITE);
   const user = await client.id.waitForUser();
   const createdBy = user?.email?.trim().toLowerCase();
