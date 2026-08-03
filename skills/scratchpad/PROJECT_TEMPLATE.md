@@ -4,9 +4,9 @@
 - **Status**: active
 - **Project slug**: <project-slug>
 - **Project title**: 🗂️ <project-slug>
-- **Cmux group**: 🗂️ <project-slug>
-- **Project workspace**: 🧭 project
-  - **Tabs**: 📝 neovim, 🤖 pi
+- **Workctl project**: <project-slug>
+- **Scratchpad path**: /Users/jeanmark.wright/Documents/JMxShopify/Projects/<project-slug>
+- **Repository**: none
 
 ## Overview
 
@@ -18,15 +18,15 @@
 
 ## Active Tasks
 
-<Current tasks in `tasks/active/`. Keep this list in sync when tasks move.>
+<Current tasks whose `plan.md` status is active, such as `in progress`, `in review`, `blocked`, or `paused`. Keep this list in sync when task statuses change.>
 
 ## Upcoming Tasks
 
-<Planned tasks in `tasks/upcoming/`.>
+<Planned tasks whose `plan.md` status is `upcoming`.>
 
 ## Completed Tasks
 
-<Finished tasks in `tasks/completed/`.>
+<Finished tasks whose `plan.md` status is `done` or `completed`.>
 
 ## Decisions
 
@@ -47,17 +47,26 @@ active, what is blocked, and the next project-level move.>
 
 ## Metadata format reference
 
-The top metadata block is the source of truth for `/scratchpad` and
-`/scratchpad-sync`.
+The top metadata block is the source of truth for `/scratchpad`,
+`/scratchpad-sync`, and workctl sync.
 
-- `**Status**:` — Project folder lifecycle: `active`, `upcoming`, or `completed`.
+- `**Status**:` — Project lifecycle: `active`, `upcoming`, or `completed`. Status lives here, not in a folder name.
 - `**Project slug**:` — ASCII folder slug.
 - `**Project title**:` — Human display title with emoji.
-- `**Cmux group**:` — Cmux Group display title, usually the same as Project title.
-- `**Project workspace**:` — Project-level workspace title inside the Cmux Group.
-- `**Tabs**:` — Project workspace tabs. Defaults: `📝 neovim`, `🤖 pi`.
+- `**Workctl project**:` — Workctl project ID, usually the same as `Project slug`.
+- `**Scratchpad path**:` — Absolute path to this Project folder.
+- `**Repository**:` — Either `none` or the short name accepted by `dev cd`.
 
-Default project workspace behavior:
+Workctl setup:
 
-- `📝 neovim`: cwd = Project folder; command = `nvim project.md`.
-- `🤖 pi`: cwd = Project folder; command = `pi`.
+```sh
+workctl project show <project-slug> >/dev/null 2>&1 || \
+  workctl project add <project-slug> \
+    --title "<Project title>" \
+    --directory "/Users/jeanmark.wright/Documents/JMxShopify/Projects/<project-slug>"
+```
+
+If this project has a default repository, include `--repository <repo>`.
+
+Historical note: older Project records may include Cmux fields. They are legacy
+compatibility data and are not the primary scratchpad workspace model anymore.

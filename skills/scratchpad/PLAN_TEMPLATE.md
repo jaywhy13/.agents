@@ -4,10 +4,12 @@
 - **Status**: in progress
 - **Project**: <project-slug>
 - **Task title**: 🧩 <task-slug>
+- **Workctl task**: <project-slug>/<task-slug>
 - **Repository**: none
 - **Worktree**: none
-- **Cmux workspace**: 🧩 <task-slug>
-  - **Tabs**: 📝 neovim, 🤖 pi, 🐚 terminal
+- **Scratchpad path**: /Users/jeanmark.wright/Documents/JMxShopify/Projects/<project-slug>/tasks/<task-slug>
+- **Zellij session**: <project-slug>/<task-slug>
+  - **Tabs**: plan, code, pi, terminal
 
 ## Overview
 
@@ -30,12 +32,16 @@ and offers to dispatch open Agent items.
 
 - [ ] First agent-doable item
 
-When the scratchpad dispatches an Agent todo, annotate it inline with the tab
-and current status, e.g.:
+When the scratchpad dispatches an Agent todo, annotate it inline with the Zellij
+tab and current status, e.g.:
 
-- `[ ] Refactor foo — tab: 🕵️ subagent-foo, status: running`
-- `[x] Refactor foo — tab: 🕵️ subagent-foo, status: done`
-- `[ ] Refactor foo — tab: 🕵️ subagent-foo, status: blocked (auth)`
+- `[ ] Refactor foo — tab: subagent-foo, status: running`
+- `[x] Refactor foo — tab: subagent-foo, status: done`
+- `[ ] Refactor foo — tab: subagent-foo, status: blocked (auth)`
+
+For substantial Agent todos, create a workctl Todo with `workctl todo add`.
+Todo repository, directory, and worktree fields should be omitted unless the Todo
+intentionally overrides the parent Task.
 
 ## Decisions
 
@@ -64,20 +70,66 @@ decided or discovered, and the immediate next step.>
 
 ## Metadata format reference
 
-The top metadata block is the source of truth for `/scratchpad` and
-`/scratchpad-sync`. Keep these lines parseable:
+The top metadata block is the source of truth for `/scratchpad`,
+`/scratchpad-sync`, workctl sync, and Zellij resume. Keep these lines parseable:
 
+- `**Status**:` — Task status: `upcoming`, `in progress`, `blocked`, `paused`, `in review`, `done`, or `completed`. Status lives here, not in a folder name.
 - `**Project**:` — Project slug from the filesystem, not the emoji display title.
 - `**Task title**:` — Display title with emoji for the task.
+- `**Workctl task**:` — Fully qualified workctl task ID: `<project_id>/<task_id>`.
 - `**Repository**:` — Either `none` or the short name accepted by `dev cd`.
 - `**Worktree**:` — Either `none` or an absolute path to a task-scoped git worktree.
-- `**Cmux workspace**:` — Display title for the task's Cmux Workspace.
-- `**Tabs**:` — Comma-separated Cmux tab titles. New tasks default to `📝 neovim`, `🤖 pi`, `🐚 terminal`.
-- Agent todo annotation: `— tab: <tab>, status: <state>` after the item text.
-  States: `queued`, `running`, `done`, `blocked (<reason>)`.
+- `**Scratchpad path**:` — Absolute path to this task scratchpad folder.
+- `**Zellij session**:` — Task-level Zellij session name, usually the same as `Workctl task`.
+- `**Tabs**:` — Comma-separated durable working-surface tab titles. New tasks default to `plan`, `code`, `pi`, `terminal`; `workctl zellij sync` creates additional tabs from active workctl Todos.
+- Agent todo annotation: `— tab: <tab>, status: <state>` after the item text. States: `queued`, `running`, `done`, `blocked (<reason>)`.
 
-Default task workspace behavior:
+Workctl setup:
 
-- `📝 neovim`: cwd = Task folder; command = `nvim plan.md`.
-- `🤖 pi`: cwd = Worktree when present, otherwise Task folder; command = `pi`.
-- `🐚 terminal`: cwd = Worktree when present, otherwise Task folder; plain shell.
+```sh
+workctl task show <project-slug>/<task-slug> >/dev/null 2>&1 || \
+  workctl task add <project-slug>/<task-slug> \
+    --title "<Task title>" \
+    --summary "<one-line task summary>" \
+    --status in_progress \
+    --priority medium \
+    --directory "/Users/jeanmark.wright/Documents/JMxShopify/Projects/<project-slug>/tasks/<task-slug>" \
+    --open-with terminal
+```
+
+If this task has a worktree, include `--worktree <absolute worktree>`. If it has
+a repository, include `--repository <repo>`. For nested work, use
+`workctl todo add <project-slug>/<task-slug>/<todo-slug>` and include
+`--parent <project-slug>/<task-slug>/<parent-todo-slug>` only for nested Todos.
+
+Zellij resume:
+
+```sh
+workctl zellij attach <project-slug>/<task-slug>
+workctl task jump <project-slug>/<task-slug>
+```
+
+Worktree scratchpad link:
+
+```sh
+worktree_path="<absolute worktree>"
+scratchpad_path="/Users/jeanmark.wright/Documents/JMxShopify/Projects/<project-slug>/tasks/<task-slug>"
+link_path="$worktree_path/.scratchpad"
+
+if [ -L "$link_path" ]; then
+  current_target=$(readlink "$link_path")
+  if [ "$current_target" != "$scratchpad_path" ]; then
+    echo "STOP: $link_path points to $current_target, expected $scratchpad_path" >&2
+    exit 1
+  fi
+elif [ -e "$link_path" ]; then
+  echo "STOP: $link_path exists and is not a symlink" >&2
+  exit 1
+else
+  ln -s "$scratchpad_path" "$link_path"
+fi
+```
+
+Historical note: older Task records may include Cmux fields and emoji tab names.
+They are legacy compatibility data and are not the primary scratchpad workspace
+model anymore.
