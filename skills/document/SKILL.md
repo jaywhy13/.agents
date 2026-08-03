@@ -11,7 +11,7 @@ Document creation helps a reader understand, decide, or act. Treat every documen
 
 ## Core principles
 
-1. **Start from the reader's goal.** Open with the document's purpose, audience, decision, or outcome before naming implementation details or specialized terminology.
+1. **Start from the reader's goal.** Open with the document's purpose, audience, decision, or outcome, and state why it matters before naming implementation details or specialized terminology. Apply this recursively to headings, paragraphs, bullets, and numbered steps. In a procedure, state what the reader will accomplish before describing the mechanism.
 2. **Disclose complexity progressively.** Begin high-level, then add layers of detail. Never drop the reader directly into jargon, edge cases, or dense mechanics.
 3. **Use analogies generously and consistently.** When a concept may feel complex, introduce a simple analogy and keep using the same analogy for the same concept throughout the document.
 4. **Help the reader know where they are.** Start with an overview or summary, organize details into clear sections, and end with a conclusion or next step.
@@ -21,6 +21,7 @@ Document creation helps a reader understand, decide, or act. Treat every documen
 8. **Illustrate whenever useful.** Prefer tables, timelines, simple diagrams, checklists, status matrices, relationship maps, and text visuals when they make the idea easier to grasp.
 9. **Use Socratic clarity when explaining.** When the document teaches a concept, apply the `explain-like-socrates` skill: guide the reader with motivating questions, gradual reasoning, and one consistent analogy.
 10. **Review after the document is complete.** Once the full draft is written, always launch a sub-agent to review the document for clarity, comprehension, structure, and appropriate succinctness before giving the final version to the user.
+11. **Explain code from behavior inward.** Assume the reader does not know the code. Describe the reader-facing capability first, the signal or source of truth that drives it second, and implementation details such as classes, methods, or data shapes last. Do not open with transformations between implementation types.
 
 ## Workflow
 
@@ -28,7 +29,7 @@ Document creation helps a reader understand, decide, or act. Treat every documen
 2. **Choose the simplest useful shape.** Start with a short summary, then select sections that match the artifact: context, goals, options, recommendation, risks, plan, timeline, status, decisions, or next steps.
 3. **Draft from high-level to detailed.** Define plain-language intent first, then introduce terms, mechanics, and edge cases in increasing depth.
 4. **Add comprehension aids.** Look for places where a table, timeline, diagram, checklist, or emoji would reduce cognitive load.
-5. **Tighten the prose.** Remove filler, repeated points, unexplained jargon, and paragraphs that mix too many ideas.
+5. **Tighten the prose.** Remove filler, repeated points, unexplained jargon, and paragraphs that mix too many ideas. If feedback or review reveals implementation-first wording anywhere, audit the entire artifact for the same pattern rather than fixing only the cited passage.
 6. **Launch the review after the draft is complete.** Once the document has a complete first draft, start a sub-agent review with the prompt below. Do not skip this review for user-facing documents.
 7. **Integrate the review.** Apply useful feedback, then deliver the final document with any assumptions or open questions clearly marked.
 
@@ -42,8 +43,8 @@ Review this document before final delivery. Apply the document skill's principle
 Check these locations specifically:
 1. Opening: Does it state the reader-facing goal before details or jargon?
 2. Summary: Can the reader understand the main point without reading the full document?
-3. Section flow: Does each section move from high-level purpose to supporting details?
-4. Complex concepts: Are terms explained before heavy use, with one consistent analogy where useful?
+3. Section flow: Do headings, paragraphs, bullets, and numbered steps move from the reader-facing outcome to supporting details?
+4. Complex concepts: Are terms explained before heavy use, with one consistent analogy where useful? For code explanations, does the draft present capability, signal or source of truth, then implementation?
 5. Visuals: Would a table, timeline, checklist, diagram, or status matrix make any dense part easier to scan?
 6. Emojis: Do they provide context clues without distracting from the content?
 7. Paragraphs: Does each paragraph open with a clear point and avoid rambling?
@@ -72,6 +73,8 @@ Before delivering, verify:
 
 - The first paragraph explains why the document exists.
 - The reader can understand the summary without reading the details.
+- Headings, paragraphs, bullets, and numbered steps lead with the reader-facing outcome rather than the mechanism.
+- Code explanations present capability, signal or source of truth, then implementation.
 - Specialized terms are defined before they are used heavily.
 - Any analogy is simple, consistent, and not mixed with competing metaphors.
 - Tables or visuals are used where they reduce effort.
