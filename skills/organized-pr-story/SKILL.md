@@ -5,7 +5,7 @@ description: Publishes or refreshes a teaching-first pull request story in Organ
 
 # Organized Pull Request Story
 
-Create the teaching artifact first, then send it through the specialized pull request publisher.
+Create the teaching artifact first, then publish it to Organized, Shopify's internal personal feed hosted on its Quick app and site platform.
 
 ## Inputs
 
@@ -15,12 +15,12 @@ Create the teaching artifact first, then send it through the specialized pull re
 
 ## Workflow
 
-1. **Create the story artifact.** Invoke `/pr-story` with the pull request and reader context. Wait for its verified JSON artifact and path; do not weaken or duplicate its research and teaching workflow.
-2. **Prepare the publisher input.** Check the artifact against [SCHEMA.md](SCHEMA.md). Reuse its teaching fields unchanged and add `watch` only when the user supplied it; the publisher owns all managed database fields. Write this composed object to a temporary path such as `/tmp/organized-pr-story.json` without changing the core artifact.
-3. **Publish or refresh immediately.** Unless the user explicitly requested a draft, preview, or no publish, run:
+1. **Create the story artifact.** Read [pr-story](../pr-story/SKILL.md) and carry out its workflow in this session with the pull request and reader context. Retain its verified JSON artifact and actual path; do not weaken or duplicate its research and teaching workflow.
+2. **Prepare the publisher input.** Check the artifact against [SCHEMA.md](SCHEMA.md). Reuse its teaching fields unchanged and add `watch` only when the user supplied it; the publisher owns all managed database fields. Use `mktemp` for a collision-safe composed input without changing the core artifact.
+3. **Publish or refresh immediately.** Resolve `scripts/publish-pr-story.mjs` relative to this skill's loaded `SKILL.md`. Unless the user explicitly requested a draft, preview, or no publish, run:
 
 ```bash
-node ~/.agents/skills/organized-pr-story/scripts/publish-pr-story.mjs /tmp/organized-pr-story.json
+node <resolved-publisher-script-path> <composed-input-path>
 ```
 
 The publisher creates a stable parent and immutable version 1 for a new story. For the same authenticated user, repository, and pull request number, it appends the next version only when reader-facing content changed, then refreshes the parent projection. Identical content and watch-only changes do not create versions.
@@ -32,7 +32,7 @@ The publisher creates a stable parent and immutable version 1 for a new story. F
 When the user explicitly requests a preview, run the authenticated dry run:
 
 ```bash
-node ~/.agents/skills/organized-pr-story/scripts/publish-pr-story.mjs --dry-run /tmp/organized-pr-story.json
+node <resolved-publisher-script-path> --dry-run <composed-input-path>
 ```
 
 It reads existing records to predict `create`, `update`, or `no_change` without changing the database.
