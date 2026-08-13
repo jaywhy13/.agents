@@ -1,6 +1,6 @@
 ---
 name: slash-impact-review
-description: "Build and publish a high-evidence personal impact review. Use when the user says '/impact review', 'slash impact review', 'run impact review', or asks to summarize their impact from artifacts, Organized posts, scratchpad plans, pull requests, meetings, documents, and Quick sites."
+description: "Build and publish a high-evidence personal impact review. Use when the user says '/impact review', 'slash impact review', 'run impact review', or asks to summarize their impact from artifacts, Organized posts, local work plans, pull requests, meetings, documents, and Quick sites."
 ---
 
 # Slash Impact Review
@@ -38,12 +38,12 @@ Organized is the internal personal feed at `organized.quick.shopify.io`.
 - Search tags and text for: `morning-brief`, `thinking-out-loud`, `today-i-learned`, `retro`, `impact`, `work`, project names, and presentation-like posts.
 - Use these posts to infer active work, decisions, ideas shared, and presentation artifacts.
 
-### 3. Scratchpad projects, plans, and todos
-The scratchpad is the durable task/project record under `/Users/jeanmark.wright/Documents/JMxShopify/Projects`.
+### 3. Local projects, plans, and todos
+The durable task/project record is under `/Users/jeanmark.wright/Documents/JMxShopify/Projects`.
 - Read active, upcoming, and completed project `project.md` files modified in the window.
 - Read task `plan.md` files under each project's `tasks/active`, `tasks/completed`, and `tasks/upcoming` when started, modified, completed, or referenced in the window.
 - Extract: overview, status, task list completions, decisions, open questions, files touched, pull request links, issue links, and retrospectives.
-- Do not use the old `/Users/jeanmark.wright/Documents/JMxShopify/Tasks` tree unless the current scratchpad files explicitly reference it.
+- Do not use the old `/Users/jeanmark.wright/Documents/JMxShopify/Tasks` tree unless the current project files explicitly reference it.
 
 ### 4. Pull requests, issues, and commits
 - Find pull requests authored by the GitHub handle and closed or merged in the window.
@@ -65,7 +65,7 @@ The scratchpad is the durable task/project record under `/Users/jeanmark.wright/
 
 ### 7. Quick sites and presentations
 Quick is Shopify's internal static app/site platform.
-- Search for Quick sites created or edited by the user, especially site names mentioned in scratchpad plans, Organized posts, pull requests, Slack, or meetings.
+- Search for Quick sites created or edited by the user, especially site names mentioned in local work plans, Organized posts, pull requests, Slack, or meetings.
 - Inspect files and collections with Quick tools when available.
 - Treat demo sites, visual explainers, dashboards, and prototypes as presentation artifacts when they were used to share ideas with a team.
 
@@ -88,7 +88,7 @@ Create 3–7 initiatives. Each initiative should have:
 - 3–5 grouped bullets under stable labels instead of repeating `Impact:` on every line:
   - `🎯 Outcome` — what changed for people, the team, or the system;
   - `🚢 Shipped / moved` — concrete pull requests, docs, sites, decisions, or coordination that moved the outcome;
-  - `🔗 Evidence` — link-rich artifacts: GSD/project links, pull requests, docs, Organized posts, Quick sites, meeting notes, Slack threads, scratchpad plans;
+  - `🔗 Evidence` — link-rich artifacts: GSD/project links, pull requests, docs, Organized posts, Quick sites, meeting notes, Slack threads, and local work plans;
   - `🟢 Status` / `🟡 Status` / `🔴 Status` — shipped, in review, in flight, research, or blocked;
   - `⚠️ Caveat` — only when evidence is weak or incomplete.
 
@@ -128,7 +128,7 @@ Write the final review as Markdown. Make it skimmable, link-rich, and lively:
 
 ## 🧾 Evidence reviewed
 - 📝 Organized posts: <count and notable examples>
-- 🗂️ Scratchpad projects/plans: <count and notable examples>
+- 🗂️ Local projects/plans: <count and notable examples>
 - 🚢 Pull requests/issues/commits: <count and notable examples>
 - 🤝 Meetings/notes: <count and notable examples>
 - 📄 Documents: <count and notable examples>

@@ -103,7 +103,7 @@ if (matching) {
 ```
 
 Write report:
-- Path: <scratchpad>/fingerprint-reports/<fingerprint-or-issue>.md
+- Path: `fingerprint-reports/<fingerprint-or-issue>.md` inside the repository working directory (`WORK_WORKING_DIRECTORY` when set).
 - Include source issue summary, evidence, exact/inferred SQL status, caller mapping, product concern, classification, recommendation, unresolved questions, and schema/instruction improvement suggestions.
 
 Report back with:

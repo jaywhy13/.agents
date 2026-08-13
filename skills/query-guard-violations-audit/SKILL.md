@@ -40,7 +40,7 @@ quick curl https://anc-query-guard-audit.quick.shopify.io/schema.js
 quick curl https://anc-query-guard-audit.quick.shopify.io/metadata.json
 ```
 
-If local site source is needed, the latest scratchpad found for this workflow was:
+If local site source is needed, the last known local copy of the site source was:
 
 ```text
 /Users/jeanmark.wright/src/github.com/Shopify/ad-network-connectivity/tmp/anc-query-guard-audit-site

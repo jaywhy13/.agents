@@ -1,6 +1,6 @@
 ---
 name: impact
-description: "Generate a personal impact report for review (e.g. before a manager 1:1). Reviews the last 3 weeks of 1:1 notes to extract todos + verify execution + summarize themes, summarizes the last week of scratchpad work by impact, and rounds up Slack + PR activity. Writes an expanded, memory-jogging YYYY-MM-DD-impact.md into the Obsidian Impact vault. Trigger: user says '/impact', 'impact report', 'what have I been doing', 'prep my impact', or 'summarize my impact'."
+description: "Generate a personal impact report for review (e.g. before a manager 1:1). Reviews the last 3 weeks of 1:1 notes to extract todos + verify execution + summarize themes, summarizes the last week of local work plans by impact, and rounds up Slack + PR activity. Writes an expanded, memory-jogging YYYY-MM-DD-impact.md into the Obsidian Impact vault. Trigger: user says '/impact', 'impact report', 'what have I been doing', 'prep my impact', or 'summarize my impact'."
 ---
 
 # Impact
@@ -21,9 +21,9 @@ the inputs — it goes and finds them.
 - **1:1 manager**: Joel Dmello (recurring "Jean-Mark/Joel 1:1"). Override if the
   user names a different person.
 - **1:1 review window**: last **3 weeks**
-- **Scratchpad window**: last **1 week**
-- **Scratchpad tasks root**: `/Users/jeanmark.wright/Documents/JMxShopify/Tasks`
-  (`active/` and `completed/`, one `plan.md` per task folder)
+- **Work-plan window**: last **1 week**
+- **Work-plan root**: `/Users/jeanmark.wright/Documents/JMxShopify/Projects`
+  (one `project.md` per project and one `tasks/**/plan.md` per task)
 
 Treat windows as defaults; honor any window the user specifies ("last month").
 
@@ -65,12 +65,12 @@ Cross-reference every extracted todo against hard evidence and label it
 - Issues: `github_search_issues` with the same author/date filter.
 - Slack: `slack_search` `from:@<me> after:<date>` to catch coordination,
   socialization, and decisions that never became a PR.
-- Scratchpad plans (step 4) often record the ticket/PR a todo turned into.
+- Local work plans (step 4) often record the ticket/PR a todo turned into.
 - Be careful asserting a negative — only call something Outstanding after
   checking PRs **and** issues **and** Slack and finding nothing.
 
-### 4. Summarize the last week of scratchpad work, by impact
-- List `plan.md` files under the tasks root modified/created in the window
+### 4. Summarize the last week of local work plans, by impact
+- List `plan.md` files under the work-plan root modified/created in the window
   (`find <root> -name plan.md`; also read `Status` and `Started` headers).
 - Read each relevant `plan.md`. Pull the Overview, completed task-list items,
   Decisions, Files Touched, and any PR/issue links.
@@ -101,12 +101,12 @@ Use Obsidian-friendly markdown. Lead each section high-level, then detail.
 ---
 date: <YYYY-MM-DD>
 type: impact-report
-window: 1:1 notes 3w / scratchpad 1w
+window: 1:1 notes 3w / local work plans 1w
 ---
 
 # Impact — <Mon DD, YYYY>
 
-> Sources: <N> 1:1s (<dates>), scratchpad (<N> tasks), PRs (<handle>), issues, Slack.
+> Sources: <N> 1:1s (<dates>), local work plans (<N> tasks), PRs (<handle>), issues, Slack.
 > Caveats: <e.g. "May 15 1:1 had no Gemini notes">.
 
 ## 1. 1:1 Todos — execution status
@@ -129,7 +129,7 @@ Numbered list. Each theme: a one-line name, then 2–3 sentences on what work
 feeds it, why it matters now (e.g. "ahead of Q3 internationalization"), and the
 through-line connecting the individual tasks.
 
-## 3. Scratchpad work this week, by impact
+## 3. Local work plans this week, by impact
 Tiered (🔴 / 🟠 / 🟡). Each item: a bold one-line headline, then a paragraph —
 what the problem was, what I did, the specific artifacts (PRs/issues/docs/sites),
 and the outcome or current status. Enough that I can reconstruct the week.
@@ -152,5 +152,5 @@ and the outcome or current status. Enough that I can reconstruct the week.
   issues, and Slack and found nothing — say where you looked.
 - A 1:1 calendar slot can attach a mislabeled notes doc; trust the doc's own
   date/content over the slot it dangles from.
-- If the scratchpad task folders look empty, the `ls` may be glitching — use
+- If the work-plan folders look empty, the `ls` may be glitching — use
   `find <root> -name plan.md` to enumerate reliably.

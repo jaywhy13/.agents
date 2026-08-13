@@ -1,7 +1,7 @@
 ---
 name: organized-retro
 description: >
-  Publishes a task/project retrospective to Organized, Shopify's internal personal feed at organized.quick.shopify.io. Use when the user invokes /organized-retro, says "post the retro" / "submit this retro to Organized", or when the scratchpad Task completion flow needs to publish a retro. Accepts a retro.md path or raw retro text.
+  Publishes a task/project retrospective to Organized, Shopify's internal personal feed at organized.quick.shopify.io. Use when the user invokes /organized-retro, says "post the retro" / "submit this retro to Organized", or provides a retrospective to publish. Accepts a retro.md path or raw retro text.
 ---
 
 # Organized Retro
@@ -11,7 +11,7 @@ Publish a polished retrospective to Organized, Shopify's internal personal feed 
 ## Inputs
 
 - A retro source: either a path to a `retro.md` file or raw retro text. If a `retro.md` exists beside the current task's `plan.md`, prefer that. If neither is given, ask for the retro text or generate one first (see the `retrospect` skill).
-- Optional project/task slugs for tagging. If invoked from the scratchpad, take them from the task's `plan.md` metadata.
+- Optional project/task slugs for tagging. If invoked from a task workflow, take them from the task's `plan.md` metadata.
 - Preserve the author's meaning and first-person voice. Improve structure and readability; do not invent outcomes, metrics, or lessons.
 - If the retro names people in a sensitive way or contains anything confidential beyond normal internal work notes, ask before publishing.
 
@@ -48,7 +48,7 @@ Keep it concise and skimmable.
 
 ## Confirm before publishing
 
-Show the exact `title`, `summary`, `body`, and `tags` and ask for approval before posting — UNLESS the user (or the calling scratchpad flow) explicitly says to post without review. When the scratchpad Task completion flow calls this skill, it may post without a separate confirmation since the user already confirmed task closure; still surface the final fields in the report.
+Show the exact `title`, `summary`, `body`, and `tags` and ask for approval before posting unless the user or calling flow explicitly says to post without review. Skip the separate confirmation only when the caller states that the user has already confirmed task closure; still surface the final fields in the report.
 
 ## Publish to Organized
 
