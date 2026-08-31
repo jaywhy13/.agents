@@ -1,0 +1,44 @@
+{
+  "name": "pi-teach",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pi /teach: an interactive teaching lesson in a local browser window.",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "setup": "npm install && npm install --prefix frontend && npm run link:pi && npm run build:frontend && npm run check:setup",
+    "check:setup": "node scripts/check-setup.mjs",
+    "test": "node --test --test-concurrency=4 --test-timeout=15000 \"tests/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "link:pi": "node scripts/link-pi-packages.mjs",
+    "build:frontend": "node scripts/build-frontend.mjs",
+    "verify": "npm run typecheck && npm test"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  }
+}

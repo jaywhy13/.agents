@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@earendil-works/pi-coding-agent": [
+        "../../../.pi/pkg/pi-0.84.3/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
+      ],
+      "typebox": ["../../../.pi/pkg/pi-0.84.3/node_modules/typebox/build/index.d.mts"],
+      "react": ["./frontend/node_modules/react"],
+      "react-dom/client": ["./frontend/node_modules/react-dom/client"],
+      "@excalidraw/excalidraw": ["./frontend/node_modules/@excalidraw/excalidraw"]
+    }
+  },
+  "include": ["src/**/*.ts", "shared/**/*.ts", "tests/**/*.ts", "frontend/src/**/*.ts", "frontend/src/**/*.tsx"]
+}
