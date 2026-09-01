@@ -597,7 +597,7 @@ export class TeachingLessonConductor implements LessonConductor {
     try {
       await this.runTurn(activeLesson, trigger, turnReachedSession);
     } catch (cause) {
-      this.reportTurnFailure(cause);
+      await this.reportTurnFailure(cause);
     } finally {
       // A turn that failed before it reached the session must still release the
       // caller waiting on it, or the lesson page would wait for ever.
@@ -632,13 +632,25 @@ export class TeachingLessonConductor implements LessonConductor {
     }
   }
 
-  private reportTurnFailure(cause: unknown): void {
+  private async reportTurnFailure(cause: unknown): Promise<void> {
     const error = asError(cause);
     this.noticeToLearner("error", `The lesson stopped: ${error.message}`);
     try {
       this.onError(error);
     } catch {
       // The pi session's own notifier is best effort.
+    }
+
+    // A failed provider call otherwise leaves the page saying "Teaching now" with
+    // every learner control disabled. Hand it back to the learner as a stopped turn.
+    try {
+      await this.announceStatus("aborted");
+    } catch (statusCause) {
+      try {
+        this.onError(asError(statusCause));
+      } catch {
+        // Reporting both the original failure and this persistence failure is best effort.
+      }
     }
   }
 

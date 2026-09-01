@@ -6,6 +6,7 @@ import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent"
 import { openLessonInBrowser } from "./browser-opener.ts";
 import { LatestNotifier } from "./latest-notifier.ts";
 import { describeMissingPrerequisites, inspectSetup } from "./setup-prerequisites.ts";
+import { resolveTeachingSessionConfiguration } from "./services/teaching-session-configuration.ts";
 import type { TeachLessonHost } from "./teach-lesson-host.ts";
 
 const packageDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -44,6 +45,15 @@ export default function teachExtension(pi: ExtensionAPI): void {
         return;
       }
 
+      let teachingConfiguration;
+      try {
+        teachingConfiguration = await resolveTeachingSessionConfiguration(ctx);
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        ctx.ui.notify(message, "error");
+        return;
+      }
+
       // Loaded here, not at the top, so a clone with no dependencies installed
       // still loads the extension and gets the message above.
       const [{ TeachLessonHost: LessonHost }, { createPiTeachingAgentSessionFactory }] =
@@ -55,7 +65,7 @@ export default function teachExtension(pi: ExtensionAPI): void {
       lessonHost ??= new LessonHost({
         lessonsDirectory: lessonsDirectory(getAgentDir()),
         publicDirectory: PUBLIC_DIRECTORY,
-        createTeachingAgentSession: createPiTeachingAgentSessionFactory(),
+        createTeachingAgentSession: createPiTeachingAgentSessionFactory(teachingConfiguration),
         onError: (error) => notifier.report(error),
       });
 

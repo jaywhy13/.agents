@@ -498,8 +498,14 @@ describe("LessonServer lesson socket", () => {
       setup: { topic: "How a message queue works", references: [] },
     });
     await waitUntil(() => conductor.startedSetups.length === 1);
+    const startedState = await client.nextMessage();
 
     assert.equal(conductor.startedSetups[0]?.topic, "How a message queue works");
+    assert.equal(startedState.type, "lesson_state");
+    assert.equal(
+      startedState.type === "lesson_state" ? startedState.metadata.topic : "",
+      "How a message queue works",
+    );
     client.close();
   });
 

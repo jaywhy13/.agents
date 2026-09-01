@@ -554,6 +554,7 @@ export class LessonServer {
     switch (message.type) {
       case "start_lesson":
         await this.conductor.startLesson(message.setup);
+        await this.broadcastCurrentLessonState();
         return;
       case "answer":
         await this.conductor.answerQuestion(message.questionId, message.text);
@@ -577,6 +578,22 @@ export class LessonServer {
         await this.conductor.interrupt();
         return;
     }
+  }
+
+  /**
+   * A page starts with no lesson metadata. Status and beat messages are incremental,
+   * so they cannot create that first record. Send one full snapshot after setup;
+   * later messages can then update it in place.
+   */
+  private async broadcastCurrentLessonState(): Promise<void> {
+    const transcript = await this.conductor.getTranscript();
+    if (transcript === null) {
+      return;
+    }
+    this.connectionHub.broadcast({
+      type: "lesson_state",
+      ...lessonStateFor(transcript),
+    });
   }
 
   private checkRequest(request: IncomingMessage, requestUrl: string): GuardDecision {

@@ -410,6 +410,16 @@ describe("TeachingLessonConductor when a teaching turn fails", () => {
     );
   });
 
+  it("hands the page back to the learner instead of leaving every control disabled", async () => {
+    const { conductor, broadcaster, repository, session } = await harnessTeachingALesson();
+
+    session.failCurrentPrompt(new Error("the model went away"));
+    await conductor.waitForIdle();
+
+    assert.deepEqual(statusesBroadcast(broadcaster), ["teaching", "aborted"]);
+    assert.equal((await repository.getLesson(LESSON_ID))?.status, "aborted");
+  });
+
   it("lets the learner carry on after a failed turn", async () => {
     const { conductor, session } = await harnessTeachingALesson();
     session.failCurrentPrompt(new Error("the model went away"));
