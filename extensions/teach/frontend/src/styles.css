@@ -1,0 +1,653 @@
+:root {
+  --page-background: #12141a;
+  --card-background: #1b1f28;
+  --card-border: #2b3242;
+  --text-primary: #eef1f7;
+  --text-secondary: #a7b0c0;
+  --accent: #7aa2f7;
+  --accent-strong: #5a86e0;
+  --danger: #f7768e;
+  --reading-width: 46rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page-background);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.lesson-page {
+  max-width: var(--reading-width);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 6rem;
+}
+
+.lesson-title {
+  font-size: 1.6rem;
+  margin: 0 0 0.25rem;
+}
+
+.lesson-subtitle {
+  color: var(--text-secondary);
+  margin: 0 0 2rem;
+}
+
+.setup-field {
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.setup-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.setup-hint {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+
+.setup-input,
+.setup-textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.setup-textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.setup-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.reference-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.reference-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.reference-kind {
+  color: var(--accent);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reference-value {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  flex: 1;
+}
+
+.button {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--card-background);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--accent);
+}
+
+.button-primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.button-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.button-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+/* What the learner asks for outright, kept apart from what moves the lesson on. */
+.learner-controls {
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.beat-card {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.beat-kind-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 0.4rem;
+}
+
+.concept-card-number {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.concept-card-title {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.concept-card-summary {
+  margin: 0 0 1rem;
+}
+
+.concept-card-points {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.concept-card-points li {
+  margin-bottom: 0.35rem;
+}
+
+.concept-card-pause {
+  margin-top: 1rem;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.unsupported-beat {
+  border: 1px dashed var(--card-border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.25rem;
+}
+
+.notice {
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--card-border);
+}
+
+.notice-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.status-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.6rem 1.5rem;
+  background: var(--card-background);
+  border-top: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+}
+
+.status-recording {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.question-box {
+  background: var(--card-background);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.hotkey {
+  font-family: ui-monospace, "SF Mono", monospace;
+  background: var(--page-background);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+}
+
+.glossary-term {
+  border-bottom: 1px dotted var(--accent);
+  cursor: help;
+}
+
+.definition-card {
+  border-left: 3px solid var(--accent);
+}
+
+.definition-term {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.definition-full-form {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 400;
+  margin-left: 0.6rem;
+}
+
+.definition-meaning {
+  margin: 0;
+}
+
+.definition-example {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+}
+
+.definition-example-label {
+  color: var(--accent);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 0.5rem;
+}
+
+.code-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.code-card-header .beat-kind-label {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", monospace;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.code-copy-button {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.code-block {
+  background: var(--page-background);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0;
+  overflow-x: auto;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.code-line {
+  display: block;
+  padding: 0 0.9rem;
+  white-space: pre;
+}
+
+.code-line-emphasized {
+  background: rgba(122, 162, 247, 0.13);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.code-line-number {
+  display: inline-block;
+  width: 2.2rem;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  user-select: none;
+  text-align: right;
+  margin-right: 1rem;
+}
+
+.code-explanation {
+  margin: 0.9rem 0 0;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6b7487;
+}
+
+.token.punctuation {
+  color: #9aa3b5;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: var(--danger);
+}
+
+.token.boolean,
+.token.number {
+  color: #ffa657;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #9ece6a;
+}
+
+.token.operator,
+.token.entity,
+.token.url {
+  color: #89ddff;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #bb9af7;
+}
+
+.token.function,
+.token.class-name {
+  color: var(--accent);
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #e0af68;
+}
+
+.quiz-card {
+  border-color: var(--accent);
+}
+
+.quiz-question {
+  margin: 0 0 0.9rem;
+  font-weight: 600;
+}
+
+.quiz-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.quiz-choice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.quiz-choice:hover {
+  background: rgba(122, 162, 247, 0.08);
+}
+
+.quiz-choice-correct {
+  background: rgba(158, 206, 106, 0.15);
+}
+
+.quiz-waiting {
+  align-self: center;
+  color: var(--text-secondary);
+}
+
+.quiz-result {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+}
+
+.quiz-result-correct {
+  border-color: #9ece6a;
+}
+
+.quiz-result-partly_correct {
+  border-color: #e0af68;
+}
+
+.quiz-result-incorrect {
+  border-color: var(--danger);
+}
+
+.quiz-grade {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.quiz-explanation {
+  margin: 0;
+}
+
+.pause-card {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.pause-reason {
+  margin: 0;
+}
+
+.pause-hint {
+  margin: 0.5rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.lesson-end-card {
+  border-color: var(--accent);
+}
+
+.lesson-end-recap {
+  margin: 0;
+}
+
+.lesson-end-section {
+  margin-top: 1rem;
+}
+
+.lesson-end-heading {
+  font-size: 0.95rem;
+  margin: 0 0 0.35rem;
+}
+
+.lesson-end-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.glossary-panel {
+  margin-top: 2rem;
+  border-top: 1px solid var(--card-border);
+  padding-top: 1rem;
+}
+
+.glossary-heading {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+}
+
+.glossary-list {
+  margin: 0;
+}
+
+.glossary-entry {
+  margin-bottom: 0.6rem;
+}
+
+.glossary-entry-term {
+  font-weight: 600;
+}
+
+.glossary-entry-full-form {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.glossary-entry-meaning {
+  margin: 0 0 0 0;
+  color: var(--text-secondary);
+}
+
+.selection-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 4rem;
+  z-index: 1;
+}
+
+/* Diagrams -------------------------------------------------------------- */
+
+.diagram-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.diagram-reset-button {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+}
+
+/*
+ * A fixed height, because the editor draws into a canvas that fills its parent and
+ * would otherwise collapse to nothing.
+ */
+.diagram-canvas {
+  height: 26rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.diagram-editor-surface {
+  width: 100%;
+  height: 100%;
+}
+
+.diagram-editor-missing {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.diagram-outline {
+  border-top: 1px solid var(--card-border);
+  padding-top: 0.75rem;
+}
+
+.diagram-outline-title {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.diagram-outline-heading {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin: 0.75rem 0 0.3rem;
+}
+
+.diagram-outline-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.diagram-outline-group {
+  color: var(--text-secondary);
+}
+
+.diagram-outline-emphasized {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Pictures -------------------------------------------------------------- */
+
+.image-alternative-text {
+  margin: 0 0 0.75rem;
+}
+
+.image-illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* A tall picture must not push the rest of the lesson off the screen. */
+  max-height: 30rem;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--page-background);
+}
+
+.image-status {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* Voice ----------------------------------------------------------------- */
+
+.voice-unavailable {
+  font-size: 0.9rem;
+}
+
+.voice-button {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+}
+
+.voice-error {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
